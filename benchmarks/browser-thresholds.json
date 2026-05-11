@@ -1,0 +1,7 @@
+{
+  "maxAverageMs": {
+    "browser:render:landing-240-nodes": 2,
+    "browser:render:dashboard-1000-nodes": 8,
+    "browser:rerender:dashboard-1000-nodes": 14
+  }
+}

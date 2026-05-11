@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ps-spa browser benchmarks</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Iosevka Etoile", "IBM Plex Sans", system-ui, sans-serif;
+        background: #f5efe2;
+        color: #1b1a17;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(198, 227, 255, 0.7), transparent 28rem),
+          radial-gradient(circle at bottom right, rgba(255, 208, 169, 0.7), transparent 24rem),
+          #f5efe2;
+      }
+      main { width: min(960px, calc(100vw - 2rem)); margin: 0 auto; padding: 3rem 0 4rem; }
+      .hero { display: grid; gap: 0.75rem; margin-bottom: 2rem; }
+      .eyebrow { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.75rem; color: #935f2b; }
+      h1 { font-size: clamp(2rem, 4vw, 3.8rem); line-height: 0.92; margin: 0; }
+      .lede { max-width: 48rem; font-size: 1.05rem; color: #4f463d; }
+      .panel {
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(27, 26, 23, 0.1);
+        border-radius: 1.25rem;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 20px 60px rgba(72, 48, 24, 0.08);
+        padding: 1.25rem;
+      }
+      table { width: 100%; border-collapse: collapse; }
+      th, td {
+        text-align: left;
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid rgba(27, 26, 23, 0.1);
+        font-variant-numeric: tabular-nums;
+      }
+      th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6f665d; }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 999px;
+        background: #fff3cd;
+        color: #6b4f00;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.92rem;
+      }
+      .status.ok { background: #dbf7df; color: #166534; }
+      .status.error { background: #fde2e2; color: #991b1b; }
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin: 1rem 0 1.5rem;
+      }
+      .metric { background: rgba(27, 26, 23, 0.04); border-radius: 1rem; padding: 0.85rem 1rem; }
+      .metric strong { display: block; font-size: 1.4rem; }
+      code { font-family: "Iosevka", "SFMono-Regular", monospace; font-size: 0.95em; }
+      #benchmark-root { position: absolute; inset: -10000px auto auto -10000px; width: 1px; height: 1px; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">ps-spa runtime</div>
+        <h1>Real browser benchmarks</h1>
+        <div class="lede">
+          This page measures the actual browser cost of the renderer and SPA navigation layer,
+          not the generator. Results are posted back to the local benchmark runner.
+        </div>
+      </section>
+
+      <section class="panel">
+        <div id="status" class="status">Running benchmarks…</div>
+        <div class="meta">
+          <div class="metric"><span>Scenarios</span><strong id="scenario-count">0</strong></div>
+          <div class="metric"><span>Routes</span><strong id="route-count">0</strong></div>
+          <div class="metric"><span>Posted to</span><strong><code>/__ps_spa_benchmarks</code></strong></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Average (ms)</th>
+              <th>Total (ms)</th>
+              <th>Ops/s</th>
+            </tr>
+          </thead>
+          <tbody id="results"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <div id="benchmark-root"></div>
+    <script type="module" src="./client.js"></script>
+  </body>
+</html>

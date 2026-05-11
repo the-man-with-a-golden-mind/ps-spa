@@ -1,0 +1,8 @@
+{
+  "maxAverageMs": {
+    "renderDocument:landing-240-nodes": 1.5,
+    "renderDocument:dashboard-1000-nodes": 6,
+    "rerenderDocument:dashboard-1000-nodes": 10,
+    "internalUrlRequest:nav-click": 0.01
+  }
+}

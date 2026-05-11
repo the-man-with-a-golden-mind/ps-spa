@@ -1,0 +1,34 @@
+{
+  "routes": [
+    {
+      "constructor": "PeopleNameParam",
+      "dynamicParams": [
+        "name"
+      ],
+      "isNotFound": false,
+      "path": "/people/:name",
+      "routePattern": "/people/:name"
+    },
+    {
+      "constructor": "Index",
+      "dynamicParams": [],
+      "isNotFound": false,
+      "path": "/",
+      "routePattern": "/"
+    },
+    {
+      "constructor": "Playground",
+      "dynamicParams": [],
+      "isNotFound": false,
+      "path": "/playground",
+      "routePattern": "/playground"
+    },
+    {
+      "constructor": "NotFound",
+      "dynamicParams": [],
+      "isNotFound": true,
+      "path": null,
+      "routePattern": "/not-found"
+    }
+  ]
+}

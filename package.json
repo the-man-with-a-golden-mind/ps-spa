@@ -1,0 +1,61 @@
+{
+  "name": "ps-spa",
+  "version": "0.1.0",
+  "description": "File-based SPA scaffolding and runtime for PureScript inspired by elm-spa",
+  "license": "MIT",
+  "author": "Michal Majchrzak",
+  "private": false,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michalmajchrzak/ps-spa.git"
+  },
+  "homepage": "https://github.com/michalmajchrzak/ps-spa#readme",
+  "bugs": {
+    "url": "https://github.com/michalmajchrzak/ps-spa/issues"
+  },
+  "bin": {
+    "ps-spa": "./scripts/ps-spa.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "AGENTS.md",
+    "LICENSE",
+    "README.md",
+    "llms.txt",
+    "benchmarks",
+    "docs",
+    "packages.dhall",
+    "scripts",
+    "spago.dhall",
+    "src"
+  ],
+  "keywords": [
+    "purescript",
+    "spa",
+    "routing",
+    "elm-spa",
+    "tea",
+    "codegen"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "add": "node scripts/ps-spa.mjs --root examples/basic add",
+    "bench": "node scripts/run-benchmarks.mjs --root examples/basic",
+    "bench:browser": "node scripts/run-browser-bench.mjs --root examples/basic --open",
+    "bench:browser:verify": "node scripts/run-browser-bench.mjs --root examples/basic --verify --open",
+    "bench:verify": "node scripts/run-benchmarks.mjs --root examples/basic --verify",
+    "doctor": "node scripts/ps-spa.mjs --root examples/basic doctor",
+    "gen": "node scripts/ps-spa.mjs --root examples/basic gen",
+    "new": "node scripts/ps-spa.mjs new",
+    "prepublishOnly": "node scripts/release-check.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "test:generated": "node --test \"examples/basic/tests-generated/**/*.test.mjs\"",
+    "test:js": "node --test \"tests-js/**/*.test.mjs\"",
+    "verify": "node scripts/ps-spa.mjs --root examples/basic verify"
+  }
+}

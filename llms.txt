@@ -1,0 +1,23 @@
+ps-spa is a PureScript SPA framework inspired by elm-spa.
+
+Use it like this:
+
+- Pages live in src/Pages
+- Generated code lives in src/Generated
+- Run ps-spa gen after route or page structure changes
+- Prefer editing src/Pages over editing src/Generated
+- Verify generated state with ps-spa verify
+
+Important paths in this repository:
+
+- src/PsSpa: framework core
+- scripts/cli: generator and scaffolding logic
+- examples/basic: standalone example app
+- examples/tailwind: standalone example app with Tailwind scaffolding
+
+See:
+
+- docs/getting-started.md
+- docs/architecture.md
+- docs/ai-usage.md
+- docs/publishing.md
