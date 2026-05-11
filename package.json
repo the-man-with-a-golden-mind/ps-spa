@@ -8,11 +8,11 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/michalmajchrzak/ps-spa.git"
+    "url": "git+https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa.git"
   },
-  "homepage": "https://github.com/michalmajchrzak/ps-spa#readme",
+  "homepage": "https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa#readme",
   "bugs": {
-    "url": "https://github.com/michalmajchrzak/ps-spa/issues"
+    "url": "https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa/issues"
   },
   "bin": {
     "ps-spa": "./scripts/ps-spa.mjs"
