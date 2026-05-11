@@ -45,6 +45,7 @@ node scripts/ps-spa.mjs --root examples/basic gen
 node scripts/ps-spa.mjs --root examples/basic verify
 node scripts/ps-spa.mjs --root examples/basic doctor
 npm run test:generated
+npm run test:ps
 npm run bench
 npm run bench:verify
 npm run bench:browser
@@ -142,6 +143,7 @@ Internal `<a href="/somewhere">` links are intercepted by the SPA runtime, so ro
 
 This is still not literally fail-proof. What it has now is a much stronger safety net:
 
+- PureScript framework tests for the core request/effect/html/page APIs in `test/`
 - handwritten framework tests in [tests-js](tests-js)
 - generated per-page smoke tests in [`examples/basic/tests-generated`](examples/basic/tests-generated)
 - real-world codegen and routing benchmarks in [benchmarks](benchmarks)

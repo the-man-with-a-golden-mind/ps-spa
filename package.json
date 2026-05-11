@@ -56,6 +56,7 @@
     "release:check": "node scripts/release-check.mjs",
     "test:generated": "node --test \"examples/basic/tests-generated/**/*.test.mjs\"",
     "test:js": "node --test \"tests-js/**/*.test.mjs\"",
+    "test:ps": "node scripts/test-purescript.mjs",
     "verify": "node scripts/ps-spa.mjs --root examples/basic verify"
   }
 }
