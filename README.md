@@ -1,4 +1,4 @@
-# ps-spa
+![ps-spa logo](logo.png)
 
 `ps-spa` is a PureScript-first attempt to recreate the `elm-spa` workflow with:
 
@@ -12,26 +12,26 @@
 
 The most useful supporting docs are:
 
-- [Getting Started](/Users/michalmajchrzak/Projects/ps-spa/docs/getting-started.md)
-- [Architecture](/Users/michalmajchrzak/Projects/ps-spa/docs/architecture.md)
-- [AI Usage Guide](/Users/michalmajchrzak/Projects/ps-spa/docs/ai-usage.md)
-- [Agent Instructions](/Users/michalmajchrzak/Projects/ps-spa/AGENTS.md)
-- [Publishing Readiness](/Users/michalmajchrzak/Projects/ps-spa/docs/publishing.md)
+- [Getting Started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [AI Usage Guide](docs/ai-usage.md)
+- [Agent Instructions](AGENTS.md)
+- [Publishing Readiness](docs/publishing.md)
 
 This repository currently contains the framework foundation:
 
-- PureScript core types in [`src/PsSpa`](/Users/michalmajchrzak/Projects/ps-spa/src/PsSpa)
-- a zero-dependency Node CLI in [`scripts/ps-spa.mjs`](/Users/michalmajchrzak/Projects/ps-spa/scripts/ps-spa.mjs)
-- route/codegen tests in [`tests-js`](/Users/michalmajchrzak/Projects/ps-spa/tests-js)
-- an Elm SPA feature analysis in [`docs/elm-spa-analysis.md`](/Users/michalmajchrzak/Projects/ps-spa/docs/elm-spa-analysis.md)
-- generated example apps in [`examples/basic`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic) and [`examples/tailwind`](/Users/michalmajchrzak/Projects/ps-spa/examples/tailwind)
+- PureScript core types in [`src/PsSpa`](src/PsSpa)
+- a zero-dependency Node CLI in [`scripts/ps-spa.mjs`](scripts/ps-spa.mjs)
+- route/codegen tests in [`tests-js`](tests-js)
+- an Elm SPA feature analysis in [`docs/elm-spa-analysis.md`](docs/elm-spa-analysis.md)
+- generated example apps in [`examples/basic`](examples/basic) and [`examples/tailwind`](examples/tailwind)
 
 ## Repo Layout
 
 There are two different layers in this repo:
 
-- [`src/PsSpa`](/Users/michalmajchrzak/Projects/ps-spa/src/PsSpa) is the framework core
-- [`examples/basic/src/Main.purs`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/src/Main.purs:1), [`examples/basic/src/Pages`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/src/Pages), and [`examples/basic/src/Generated`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/src/Generated) are generated app-level code
+- [`src/PsSpa`](src/PsSpa) is the framework core
+- [`examples/basic/src/Main.purs`](examples/basic/src/Main.purs), [`examples/basic/src/Pages`](examples/basic/src/Pages), and [`examples/basic/src/Generated`](examples/basic/src/Generated) are generated app-level code
 
 `Pages` and `Generated` are app-level folders, not framework-level folders. In consumer apps they should exist. In this repo they live only under `examples/`, so the framework source stays clean.
 
@@ -55,7 +55,7 @@ spago build
 
 ## Running Examples
 
-Each app in [`examples`](/Users/michalmajchrzak/Projects/ps-spa/examples) is its own project.
+Each app in [`examples`](examples) is its own project.
 Run each example from its own directory, not from the repo root.
 
 Basic example:
@@ -93,7 +93,7 @@ If you prefer npm, use `npm install` and `npm run dev` inside that example direc
 - page modules receive a `Request` and can define `protect` guards
 - `gen` and `add` maintain generated smoke tests in `examples/basic/tests-generated/`
 - `gen` and `add` maintain generated benchmark scenarios in `examples/basic/benchmarks-generated/`
-- `gen` and `add` maintain browser benchmark assets in [`examples/basic/public/bench`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/public/bench)
+- `gen` and `add` maintain browser benchmark assets in [`examples/basic/public/bench`](examples/basic/public/bench)
 - `new` scaffolds a full app root with `spago.dhall`, `Main`, `index.html`, and browser benchmark pages
 - `verify` checks for drift in generated PureScript, generated smoke tests, generated benchmarks, and Tailwind scaffold files
 - `doctor` reports route counts plus missing/drifting generated artifacts
@@ -134,7 +134,7 @@ bun run dev
 
 ## Runtime
 
-The generated app can be bundled into `public/app.js` and mounted into `#app` using the minimal runtime in [src/PsSpa/Runtime.purs](/Users/michalmajchrzak/Projects/ps-spa/src/PsSpa/Runtime.purs:1).
+The generated app can be bundled into `public/app.js` and mounted into `#app` using the minimal runtime in [src/PsSpa/Runtime.purs](src/PsSpa/Runtime.purs).
 
 Internal `<a href="/somewhere">` links are intercepted by the SPA runtime, so route changes no longer require a full page reload.
 
@@ -142,16 +142,16 @@ Internal `<a href="/somewhere">` links are intercepted by the SPA runtime, so ro
 
 This is still not literally fail-proof. What it has now is a much stronger safety net:
 
-- handwritten framework tests in [tests-js](/Users/michalmajchrzak/Projects/ps-spa/tests-js)
-- generated per-page smoke tests in [`examples/basic/tests-generated`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/tests-generated)
-- real-world codegen and routing benchmarks in [benchmarks](/Users/michalmajchrzak/Projects/ps-spa/benchmarks)
-- generated per-page benchmark scenarios in [`examples/basic/benchmarks-generated`](/Users/michalmajchrzak/Projects/ps-spa/examples/basic/benchmarks-generated)
+- handwritten framework tests in [tests-js](tests-js)
+- generated per-page smoke tests in [`examples/basic/tests-generated`](examples/basic/tests-generated)
+- real-world codegen and routing benchmarks in [benchmarks](benchmarks)
+- generated per-page benchmark scenarios in [`examples/basic/benchmarks-generated`](examples/basic/benchmarks-generated)
 
 `npm run bench` measures the runtime path in Node with a fake DOM harness.
 
-`npm run bench:browser` starts a tiny local server, opens `/bench/`, and waits for the benchmark page to post back real browser results. The browser suite measures actual DOM render cost, rerender cost, and SPA navigation interception. `npm run bench:browser:verify` enforces thresholds from [`benchmarks/browser-thresholds.json`](/Users/michalmajchrzak/Projects/ps-spa/benchmarks/browser-thresholds.json).
+`npm run bench:browser` starts a tiny local server, opens `/bench/`, and waits for the benchmark page to post back real browser results. The browser suite measures actual DOM render cost, rerender cost, and SPA navigation interception. `npm run bench:browser:verify` enforces thresholds from [`benchmarks/browser-thresholds.json`](benchmarks/browser-thresholds.json).
 
-Each benchmark run now also writes JSON history to [`benchmarks/history`](/Users/michalmajchrzak/Projects/ps-spa/benchmarks/history), and `npm run bench:verify` enforces the thresholds from [`benchmarks/thresholds.json`](/Users/michalmajchrzak/Projects/ps-spa/benchmarks/thresholds.json).
+Each benchmark run now also writes JSON history to [`benchmarks/history`](benchmarks/history), and `npm run bench:verify` enforces the thresholds from [`benchmarks/thresholds.json`](benchmarks/thresholds.json).
 
 ## Publish Status
 
@@ -165,11 +165,11 @@ The package is now configured for an npm release with:
 
 The remaining nuance is scope, not packaging:
 the first-class release target is npm, while a separate PureScript registry release is still future work.
-See [docs/publishing.md](/Users/michalmajchrzak/Projects/ps-spa/docs/publishing.md).
+See [docs/publishing.md](docs/publishing.md).
 
 ## HTML DSL
 
-The HTML layer is now meant to feel closer to JSX than to low-level constructors. Instead of `Html.main_` and `Html.class_`, pages can use the shorter style from [src/PsSpa/Html.purs](/Users/michalmajchrzak/Projects/ps-spa/src/PsSpa/Html.purs:1):
+The HTML layer is now meant to feel closer to JSX than to low-level constructors. Instead of `Html.main_` and `Html.class_`, pages can use the shorter style from [src/PsSpa/Html.purs](src/PsSpa/Html.purs):
 
 ```purescript
 import PsSpa.Html as H
