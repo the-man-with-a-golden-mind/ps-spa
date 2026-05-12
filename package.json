@@ -8,11 +8,11 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa.git"
+    "url": "git+https://github.com/the-man-with-a-golden-mind/ps-spa.git"
   },
-  "homepage": "https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa#readme",
+  "homepage": "https://github.com/the-man-with-a-golden-mind/ps-spa#readme",
   "bugs": {
-    "url": "https://github.com/the-man-with-a-golden-mind/ps-spa/ps-spa/issues"
+    "url": "https://github.com/the-man-with-a-golden-mind/ps-spa/issues"
   },
   "bin": {
     "ps-spa": "./scripts/ps-spa.mjs"
@@ -28,6 +28,7 @@
     "benchmarks",
     "docs",
     "packages.dhall",
+    "spago.yaml",
     "scripts",
     "spago.dhall",
     "src"

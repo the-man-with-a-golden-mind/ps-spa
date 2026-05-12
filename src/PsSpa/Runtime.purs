@@ -20,10 +20,10 @@ type AppConfig shared route request command subscription =
   { initialShared :: shared
   , loadPage :: shared -> request -> LoadResult.LoadResult shared route command subscription
   , onCommand :: command -> Effect Unit
-  , onSubscription :: subscription -> Effect Browser.Cleanup
+  , onSubscription :: forall msg. (msg -> Effect Unit) -> subscription msg -> Effect Browser.Cleanup
   , parseRequest :: String -> request
   , rootId :: String
-  , sharedSubscriptions :: request -> shared -> Array subscription
+  , sharedSubscriptions :: request -> shared -> Array (subscription Void)
   , toPath :: route -> String
   }
 
@@ -48,9 +48,20 @@ start config = do
     runCommands commands =
       traverse_ config.onCommand commands
 
-    installSubscriptions subscriptions = do
-      cleanups <- traverse config.onSubscription subscriptions
+    installSubscriptions
+      :: forall msg
+       . (msg -> Effect Unit)
+      -> Array (subscription msg)
+      -> Effect Browser.Cleanup
+    installSubscriptions handle subscriptions = do
+      cleanups <- traverse (config.onSubscription handle) subscriptions
       pure (traverse_ identity cleanups)
+
+    installSharedSubscriptions
+      :: Array (subscription Void)
+      -> Effect Browser.Cleanup
+    installSharedSubscriptions subscriptions =
+      installSubscriptions absurd subscriptions
 
     goWith pushOrReplace route = do
       pushOrReplace (config.toPath route)
@@ -99,7 +110,7 @@ start config = do
                   previous <- Ref.read subCleanupRef
                   previous
                   model <- Ref.read modelRef
-                  cleanup <- installSubscriptions (pageConfig.subscriptions model)
+                  cleanup <- installSubscriptions handle (pageConfig.subscriptions model)
                   Ref.write cleanup subCleanupRef
                   Browser.renderDocument
                     { rootId: config.rootId
@@ -128,7 +139,7 @@ start config = do
                   previous <- Ref.read subCleanupRef
                   previous
                   model <- Ref.read modelRef
-                  cleanup <- installSubscriptions (pageConfig.subscriptions model)
+                  cleanup <- installSubscriptions handle (pageConfig.subscriptions model)
                   Ref.write cleanup subCleanupRef
                   Browser.renderDocument
                     { rootId: config.rootId
@@ -205,7 +216,7 @@ start config = do
           cleanup <- renderLoaded request loaded
           Ref.write cleanup pageCleanupRef
           latestShared <- Ref.read sharedRef
-          sharedCleanup <- installSubscriptions (config.sharedSubscriptions request latestShared)
+          sharedCleanup <- installSharedSubscriptions (config.sharedSubscriptions request latestShared)
           Ref.write sharedCleanup sharedCleanupRef
 
   _ <- Browser.onPopState openCurrentPath

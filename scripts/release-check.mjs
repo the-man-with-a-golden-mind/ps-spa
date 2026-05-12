@@ -22,6 +22,8 @@ function main() {
   const failures = [];
   const pkg = readJson(path.join(packageRoot, "package.json"));
   const cliSource = fs.readFileSync(path.join(packageRoot, "scripts", "ps-spa.mjs"), "utf8");
+  const spagoYamlPath = path.join(packageRoot, "spago.yaml");
+  const spagoYamlSource = fs.existsSync(spagoYamlPath) ? fs.readFileSync(spagoYamlPath, "utf8") : "";
 
   requireField(pkg.private === false, "package.json must set private=false for release", failures);
   requireField(pkg.license === "MIT", "package.json must declare MIT license", failures);
@@ -33,8 +35,15 @@ function main() {
   requireField(Array.isArray(pkg.files) && pkg.files.includes("src"), "package.json files must include src", failures);
   requireField(Array.isArray(pkg.files) && pkg.files.includes("scripts"), "package.json files must include scripts", failures);
   requireField(Array.isArray(pkg.files) && pkg.files.includes("LICENSE"), "package.json files must include LICENSE", failures);
+  requireField(Array.isArray(pkg.files) && pkg.files.includes("spago.yaml"), "package.json files must include spago.yaml", failures);
   requireField(cliSource.startsWith("#!/usr/bin/env node"), "scripts/ps-spa.mjs must keep a node shebang", failures);
   requireField(fs.existsSync(path.join(packageRoot, "LICENSE")), "LICENSE file is missing", failures);
+  requireField(fs.existsSync(spagoYamlPath), "spago.yaml is missing", failures);
+  requireField(/package:\s*\n\s*name:\s*ps-spa/.test(spagoYamlSource), "spago.yaml must declare package.name = ps-spa", failures);
+  requireField(/publish:\s*\n\s*version:\s*0\.1\.0/.test(spagoYamlSource), "spago.yaml must declare publish.version", failures);
+  requireField(/license:\s*MIT/.test(spagoYamlSource), "spago.yaml must declare publish.license = MIT", failures);
+  requireField(/githubOwner:\s*the-man-with-a-golden-mind/.test(spagoYamlSource), "spago.yaml must declare publish.location.githubOwner", failures);
+  requireField(/githubRepo:\s*ps-spa/.test(spagoYamlSource), "spago.yaml must declare publish.location.githubRepo", failures);
 
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-release-check-"));
   const installedPackageRoot = path.join(tmpRoot, "demo-app", "node_modules", "ps-spa");
@@ -44,17 +53,27 @@ function main() {
   const scaffoldSpago = files.find((file) => file.relativePath === "spago.dhall").content;
 
   requireField(
-    scaffoldPackage.scripts.build === "node node_modules/ps-spa/scripts/app-build.mjs --root .",
-    "scaffolded app build script must target installed ps-spa package",
+    scaffoldPackage.packageManager === "bun@1.3.9",
+    "scaffolded app must declare a Bun packageManager for the default Vite workflow",
     failures
   );
   requireField(
-    scaffoldPackage.scripts.dev === "node node_modules/ps-spa/scripts/app-dev.mjs --root .",
-    "scaffolded app dev script must target installed ps-spa package",
+    scaffoldPackage.scripts.build === "bunx --bun vite build",
+    "scaffolded app build script must use Bun-native vite build",
     failures
   );
   requireField(
-    scaffoldSpago.includes('packages = node_modules/ps-spa/packages.dhall'),
+    scaffoldPackage.scripts.dev === "bunx --bun vite",
+    "scaffolded app dev script must use Bun-native vite",
+    failures
+  );
+  requireField(
+    files.some((file) => file.relativePath === "vite.config.mjs" && file.content.includes('psSpaVite')),
+    "scaffolded app must include vite.config.mjs wired to psSpaVite",
+    failures
+  );
+  requireField(
+    scaffoldSpago.includes('packages = ./node_modules/ps-spa/packages.dhall'),
     "scaffolded spago.dhall must reference node_modules/ps-spa/packages.dhall",
     failures
   );

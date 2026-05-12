@@ -245,7 +245,7 @@ update msg model =
       , effect: []
       }
 
-subscriptions :: forall subscription. Model -> Array subscription
+subscriptions :: forall subscription. Model -> Array (subscription Msg)
 subscriptions _ =
   []
 
@@ -350,7 +350,7 @@ update msg model =
       , effect: Effect.none
       }
 
-subscriptions :: forall subscription. Model -> Array subscription
+subscriptions :: forall subscription. Model -> Array (subscription Msg)
 subscriptions _ =
   []
 

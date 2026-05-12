@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ../../scripts/app-build.mjs --root .",
-    "dev": "node ../../scripts/app-dev.mjs --root .",
+    "build": "vite build",
+    "dev": "vite",
     "preview": "vite preview"
   },
   "devDependencies": {

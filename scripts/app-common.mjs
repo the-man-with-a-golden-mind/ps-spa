@@ -36,9 +36,8 @@ export function parseRootArgs(argv, defaults = {}) {
   return options;
 }
 
-export function viteBinary(root) {
-  const binary = process.platform === "win32" ? "vite.cmd" : "vite";
-  return path.join(root, "node_modules", ".bin", binary);
+export function viteScript(root) {
+  return path.join(root, "node_modules", "vite", "bin", "vite.js");
 }
 
 export function collectJsFiles(rootDir) {
@@ -82,22 +81,21 @@ export function runCommand(command, args, options = {}) {
 }
 
 export async function buildBundledApp(root) {
-  const appConfig = path.relative(repoRoot, path.join(root, "spago.dhall"));
-  const bundleFile = path.relative(repoRoot, path.join(root, "public", "app.js"));
-  const pursOutputDir = path.relative(repoRoot, path.join(root, ".spago-output"));
   const pursOutputAbsolute = path.join(root, ".spago-output");
+  const jsRuntime = process.execPath;
 
-  await runCommand("node", [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"]);
+  await runCommand(jsRuntime, [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"], { cwd: root });
   await runCommand(
     "spago",
-    ["-x", appConfig, "-c", "skip", "build", "-u", `--output ${pursOutputDir}`],
+    ["-x", "spago.dhall", "-c", "skip", "build", "-u", "--output .spago-output"],
     {
+      cwd: root,
       env: { ...process.env, XDG_CACHE_HOME: path.join(repoRoot, ".cache") }
     }
   );
   await runCommand(
     "purs",
-    [...collectJsFiles(pursOutputAbsolute), "-m", "Main", "--main", "Main", "-o", bundleFile],
-    { cwd: repoRoot }
+    ["bundle", ...collectJsFiles(pursOutputAbsolute), "-m", "Main", "--main", "Main", "-o", path.join("public", "app.js")],
+    { cwd: root }
   );
 }

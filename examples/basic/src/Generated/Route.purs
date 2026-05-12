@@ -19,6 +19,7 @@ import PsSpa.Request as SpaRequest
 
 data Route
   = PeopleNameParam { name :: String }
+  | EffectsAndSubscriptions
   | Index
   | Playground
   | NotFound
@@ -30,6 +31,7 @@ toPath :: Route -> String
 toPath route =
   case route of
     PeopleNameParam params -> "" <> "/people" <> "/" <> params.name
+    EffectsAndSubscriptions -> "/effects-and-subscriptions"
     Index -> "/"
     Playground -> "/playground"
     NotFound -> "/not-found"
@@ -38,6 +40,7 @@ parsePath :: String -> Route
 parsePath href =
   case splitSegments href of
     [ "people", name ] -> PeopleNameParam { name: name }
+    [ "effects-and-subscriptions" ] -> EffectsAndSubscriptions
     [] -> Index
     [ "playground" ] -> Playground
     _ -> NotFound

@@ -33,14 +33,14 @@ type ElementConfig model msg command subscription =
   { init :: Step model (Array command)
   , update :: msg -> model -> Step model (Array command)
   , view :: model -> Document msg
-  , subscriptions :: model -> Array subscription
+  , subscriptions :: model -> Array (subscription msg)
   }
 
 type AdvancedConfig model msg shared route command subscription =
   { init :: Step model (Effect command shared route)
   , update :: msg -> model -> Step model (Effect command shared route)
   , view :: model -> Document msg
-  , subscriptions :: model -> Array subscription
+  , subscriptions :: model -> Array (subscription msg)
   }
 
 data Page model msg shared route command subscription

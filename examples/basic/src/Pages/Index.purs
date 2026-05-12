@@ -37,7 +37,7 @@ view =
               [ H.className "text-lg text-slate-600" ]
               [ H.text "This example proves file-based routing, dynamic params, and local TEA state in one small app." ]
           , H.section
-              [ H.className "grid gap-4 md:grid-cols-3" ]
+              [ H.className "grid gap-4 md:grid-cols-2 xl:grid-cols-4" ]
               [ H.div
                   [ H.className "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" ]
                   [ H.h2
@@ -63,6 +63,19 @@ view =
                       (PeopleNameParam { name: "michal" })
                       [ H.className "mt-4 inline-flex rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" ]
                       [ H.text "Open /people/michal" ]
+                  ]
+              , H.div
+                  [ H.className "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" ]
+                  [ H.h2
+                      [ H.className "text-lg font-semibold text-slate-950" ]
+                      [ H.text "Effects + subscriptions" ]
+                  , H.p
+                      [ H.className "mt-2 text-sm text-slate-600" ]
+                      [ H.text "Custom command handling and custom subscriptions wired through Generated.App.startWith." ]
+                  , Link.link
+                      EffectsAndSubscriptions
+                      [ H.className "mt-4 inline-flex rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950" ]
+                      [ H.text "Open runtime example" ]
                   ]
               , H.div
                   [ H.className "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" ]

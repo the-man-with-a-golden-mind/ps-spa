@@ -1,0 +1,27 @@
+workspace:
+  packageSet:
+    registry: 41.2.0
+
+package:
+  name: ps-spa
+  dependencies:
+    - arrays
+    - effect
+    - foldable-traversable
+    - integers
+    - maybe
+    - prelude
+    - refs
+    - strings
+  test:
+    main: Test.Main
+    dependencies: []
+  publish:
+    version: 0.1.0
+    license: MIT
+    location:
+      githubOwner: the-man-with-a-golden-mind
+      githubRepo: ps-spa
+    include:
+      - "test/**/*.purs"
+      - "test/**/*.js"

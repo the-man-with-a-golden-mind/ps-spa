@@ -102,14 +102,14 @@ function renderPageForRouteBranch(route) {
 
 function renderLoadPageBranch(route) {
   if (route.isNotFound) {
-    return `    NotFound -> decide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
+    return `    NotFound -> unsafeDecide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
   }
 
   if (route.dynamicParams.length === 0) {
-    return `    ${route.constructor} -> decide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
+    return `    ${route.constructor} -> unsafeDecide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
   }
 
-  return `    ${route.constructor} _ -> decide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
+  return `    ${route.constructor} _ -> unsafeDecide ${route.constructor}Page.page ${route.constructor}Page.protect shared request`;
 }
 
 export function generateRouteModule(routes) {
@@ -262,6 +262,7 @@ import PsSpa.LoadResult as LoadResult
 import PsSpa.LoadedPage as LoadedPage
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind)
+import Unsafe.Coerce (unsafeCoerce)
 ${routes.map(renderPagesImport).join("\n")}
 
 type PageMeta =
@@ -291,20 +292,20 @@ loadPage shared request =
   case request.route of
 ${routes.map(renderLoadPageBranch).join("\n")}
 
-decide
-  :: forall model msg shared command subscription
-   . (Request -> Page.Page model msg shared Route command subscription)
+unsafeDecide
+  :: forall model msg shared command subscription pageCommand pageSubscription
+   . (Request -> Page.Page model msg shared Route pageCommand pageSubscription)
   -> (shared -> Request -> Maybe Route)
   -> shared
   -> Request
   -> LoadResult.LoadResult shared Route command subscription
-decide load protect shared request =
+unsafeDecide load protect shared request =
   case protect shared request of
     Just redirect ->
       LoadResult.Redirect redirect
 
     Nothing ->
-      LoadResult.Loaded (LoadedPage.fromPage (load request))
+      LoadResult.Loaded (LoadedPage.fromPage (unsafeCoerce (load request)))
 
 ${routes.map(renderPageMeta).join("\n\n")}
 `;
@@ -340,6 +341,7 @@ export function generateAppModule() {
 
 import Prelude
 
+import Data.Const (Const(..))
 import Effect (Effect)
 import Generated.Pages as Pages
 import Generated.Route as Route
@@ -349,9 +351,9 @@ import PsSpa.Runtime as Runtime
 type AppConfig shared command subscription =
   { initialShared :: shared
   , onCommand :: command -> Effect Unit
-  , onSubscription :: subscription -> Effect Browser.Cleanup
+  , onSubscription :: forall msg. (msg -> Effect Unit) -> subscription msg -> Effect Browser.Cleanup
   , rootId :: String
-  , sharedSubscriptions :: Route.Request -> shared -> Array subscription
+  , sharedSubscriptions :: Route.Request -> shared -> Array (subscription Void)
   }
 
 start :: Effect Unit
@@ -359,7 +361,7 @@ start =
   startWith
     { initialShared: unit
     , onCommand: absurd
-    , onSubscription: absurd
+    , onSubscription: \\_ (Const impossible) -> absurd impossible
     , rootId: "app"
     , sharedSubscriptions: \\_ _ -> []
     }

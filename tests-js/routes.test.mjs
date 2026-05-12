@@ -129,7 +129,7 @@ test("generatePagesModule wires routes to generated page metadata", () => {
   assert.match(source, /pageForRoute :: Route -> PageMeta/);
   assert.match(source, /PeopleNameParam _ -> metaPeopleNameParam/);
   assert.match(source, /loadPage shared request =/);
-  assert.match(source, /decide IndexPage\.page IndexPage\.protect shared request/);
+  assert.match(source, /unsafeDecide IndexPage\.page IndexPage\.protect shared request/);
 });
 
 test("generateAppModule provides a default and extensible app entrypoint", () => {
@@ -173,7 +173,7 @@ test("generatePageTemplate emits real advanced page code with subscriptions", ()
   assert.match(source, /import Generated\.Route \(Request, Route\(\.\.\)\)/);
   assert.match(source, /page :: forall shared command subscription\. Request -> Page\.Page/);
   assert.match(source, /protect :: forall shared\. shared -> Request -> Maybe Route/);
-  assert.match(source, /subscriptions :: forall subscription\. Model -> Array subscription/);
+  assert.match(source, /subscriptions :: forall subscription\. Model -> Array \(subscription Msg\)/);
   assert.match(source, /kind = Advanced/);
 });
 
@@ -189,11 +189,24 @@ test("collectAppScaffoldFiles targets installed package paths for consumer apps"
   const files = collectAppScaffoldFiles(appRoot, packageRoot);
   const pkg = JSON.parse(files.find((file) => file.relativePath === "package.json").content);
   const spago = files.find((file) => file.relativePath === "spago.dhall").content;
+  const viteConfig = files.find((file) => file.relativePath === "vite.config.mjs").content;
 
-  assert.equal(pkg.scripts.build, "node node_modules/ps-spa/scripts/app-build.mjs --root .");
-  assert.equal(pkg.scripts.dev, "node node_modules/ps-spa/scripts/app-dev.mjs --root .");
-  assert.match(spago, /packages = node_modules\/ps-spa\/packages\.dhall/);
+  assert.equal(pkg.packageManager, "bun@1.3.9");
+  assert.equal(pkg.scripts.build, "bunx --bun vite build");
+  assert.equal(pkg.scripts.dev, "bunx --bun vite");
+  assert.equal(pkg.dependencies["ps-spa"], "^0.1.0");
+  assert.match(spago, /packages = \.\/node_modules\/ps-spa\/packages\.dhall/);
   assert.match(spago, /"node_modules\/ps-spa\/src\/\*\*\/\*\.purs"/);
+  assert.match(viteConfig, /import \{ psSpaVite \} from "ps-spa\/scripts\/vite-plugin\.mjs"/);
+  assert.match(viteConfig, /plugins: \[psSpaVite\(\)\]/);
+});
+
+test("collectAppScaffoldFiles uses a file dependency when scaffolding from the source repo", () => {
+  const appRoot = path.join("/tmp", "repo-app");
+  const files = collectAppScaffoldFiles(appRoot);
+  const pkg = JSON.parse(files.find((file) => file.relativePath === "package.json").content);
+
+  assert.match(pkg.dependencies["ps-spa"], /^file:/);
 });
 
 test("ensureTailwindScaffold patches package.json and creates config files", () => {

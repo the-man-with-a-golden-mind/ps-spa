@@ -5,9 +5,11 @@ import { fileURLToPath } from "node:url";
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(cliDir, "..", "..");
 const assetDir = path.join(cliDir, "scaffold-assets");
+const packageManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
 
 const exampleDependencies = [
   "arrays",
+  "const",
   "effect",
   "foldable-traversable",
   "integers",
@@ -15,21 +17,26 @@ const exampleDependencies = [
   "prelude",
   "psci-support",
   "refs",
-  "strings"
+  "strings",
+  "unsafe-coerce"
 ];
 
 function packageJsonSource(root, packageRoot = repoRoot) {
-  const fromAppToPackage = relativePathFromAppToPackage(root, packageRoot);
+  const packageDependency = packageDependencySource(root, packageRoot);
 
   return `${JSON.stringify(
     {
       name: appNameFromRoot(root),
       private: true,
       type: "module",
+      packageManager: "bun@1.3.9",
       scripts: {
-        build: `node ${fromAppToPackage}/scripts/app-build.mjs --root .`,
-        dev: `node ${fromAppToPackage}/scripts/app-dev.mjs --root .`,
-        preview: "vite preview"
+        build: "bunx --bun vite build",
+        dev: "bunx --bun vite",
+        preview: "bunx --bun vite preview"
+      },
+      dependencies: {
+        "ps-spa": packageDependency
       },
       devDependencies: {
         vite: "^5.4.19"
@@ -52,6 +59,19 @@ function appNameFromRoot(root) {
 function relativePathFromAppToPackage(root, packageRoot = repoRoot) {
   const relative = path.relative(root, packageRoot);
   return normalizePath(relative.length > 0 ? relative : ".");
+}
+
+function importPathFromAppToPackage(root, packageRoot = repoRoot) {
+  const relative = relativePathFromAppToPackage(root, packageRoot);
+  return relative.startsWith(".") ? relative : `./${relative}`;
+}
+
+function packageDependencySource(root, packageRoot = repoRoot) {
+  if (packageRoot === repoRoot) {
+    return `file:${importPathFromAppToPackage(root, packageRoot)}`;
+  }
+
+  return `^${packageManifest.version}`;
 }
 
 function mainModuleSource() {
@@ -84,13 +104,21 @@ function indexHtmlSource(appName) {
 `;
 }
 
-function spagoSource(root, packageRoot = repoRoot) {
-  const fromAppToPackage = relativePathFromAppToPackage(root, packageRoot);
+function viteConfigSource(root, packageRoot = repoRoot) {
+  return `import { defineConfig } from "vite";
+import { psSpaVite } from "ps-spa/scripts/vite-plugin.mjs";
 
+export default defineConfig({
+  plugins: [psSpaVite()]
+});
+`;
+}
+
+function spagoSource(root, packageRoot = repoRoot) {
   return `{ name = "${appNameFromRoot(root)}"
 , dependencies = [ ${exampleDependencies.map((dependency) => `"${dependency}"`).join(", ")} ]
-, packages = ${fromAppToPackage}/packages.dhall
-, sources = [ "src/**/*.purs", "${fromAppToPackage}/src/**/*.purs" ]
+, packages = ./node_modules/ps-spa/packages.dhall
+, sources = [ "src/**/*.purs", "node_modules/ps-spa/src/**/*.purs" ]
 }
 `;
 }
@@ -112,6 +140,10 @@ export function collectAppScaffoldFiles(root, packageRoot = repoRoot) {
     {
       content: packageJsonSource(root, packageRoot),
       relativePath: "package.json"
+    },
+    {
+      content: viteConfigSource(root, packageRoot),
+      relativePath: "vite.config.mjs"
     },
     {
       content: indexHtmlSource(appNameFromRoot(root)),

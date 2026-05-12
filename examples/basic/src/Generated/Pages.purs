@@ -11,7 +11,9 @@ import PsSpa.LoadResult as LoadResult
 import PsSpa.LoadedPage as LoadedPage
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind)
+import Unsafe.Coerce (unsafeCoerce)
 import Pages.People.NameParam as PeopleNameParamPage
+import Pages.EffectsAndSubscriptions as EffectsAndSubscriptionsPage
 import Pages.Index as IndexPage
 import Pages.Playground as PlaygroundPage
 import Pages.NotFound as NotFoundPage
@@ -27,6 +29,7 @@ type PageMeta =
 pages :: Array PageMeta
 pages =
   [ metaPeopleNameParam
+  , metaEffectsAndSubscriptions
   , metaIndex
   , metaPlayground
   , metaNotFound
@@ -36,6 +39,7 @@ pageForRoute :: Route -> PageMeta
 pageForRoute route =
   case route of
     PeopleNameParam _ -> metaPeopleNameParam
+    EffectsAndSubscriptions -> metaEffectsAndSubscriptions
     Index -> metaIndex
     Playground -> metaPlayground
     NotFound -> metaNotFound
@@ -47,25 +51,26 @@ loadPage
   -> LoadResult.LoadResult shared Route command subscription
 loadPage shared request =
   case request.route of
-    PeopleNameParam _ -> decide PeopleNameParamPage.page PeopleNameParamPage.protect shared request
-    Index -> decide IndexPage.page IndexPage.protect shared request
-    Playground -> decide PlaygroundPage.page PlaygroundPage.protect shared request
-    NotFound -> decide NotFoundPage.page NotFoundPage.protect shared request
+    PeopleNameParam _ -> unsafeDecide PeopleNameParamPage.page PeopleNameParamPage.protect shared request
+    EffectsAndSubscriptions -> unsafeDecide EffectsAndSubscriptionsPage.page EffectsAndSubscriptionsPage.protect shared request
+    Index -> unsafeDecide IndexPage.page IndexPage.protect shared request
+    Playground -> unsafeDecide PlaygroundPage.page PlaygroundPage.protect shared request
+    NotFound -> unsafeDecide NotFoundPage.page NotFoundPage.protect shared request
 
-decide
-  :: forall model msg shared command subscription
-   . (Request -> Page.Page model msg shared Route command subscription)
+unsafeDecide
+  :: forall model msg shared command subscription pageCommand pageSubscription
+   . (Request -> Page.Page model msg shared Route pageCommand pageSubscription)
   -> (shared -> Request -> Maybe Route)
   -> shared
   -> Request
   -> LoadResult.LoadResult shared Route command subscription
-decide load protect shared request =
+unsafeDecide load protect shared request =
   case protect shared request of
     Just redirect ->
       LoadResult.Redirect redirect
 
     Nothing ->
-      LoadResult.Loaded (LoadedPage.fromPage (load request))
+      LoadResult.Loaded (LoadedPage.fromPage (unsafeCoerce (load request)))
 
 metaPeopleNameParam :: PageMeta
 metaPeopleNameParam =
@@ -74,6 +79,15 @@ metaPeopleNameParam =
   , routePattern: "/people/:name"
   , kind: PeopleNameParamPage.kind
   , hasSubscriptions: PeopleNameParamPage.hasSubscriptions
+  }
+
+metaEffectsAndSubscriptions :: PageMeta
+metaEffectsAndSubscriptions =
+  { moduleName: "Pages.EffectsAndSubscriptions"
+  , sourcePath: "src/Pages/EffectsAndSubscriptions.purs"
+  , routePattern: "/effects-and-subscriptions"
+  , kind: EffectsAndSubscriptionsPage.kind
+  , hasSubscriptions: EffectsAndSubscriptionsPage.hasSubscriptions
   }
 
 metaIndex :: PageMeta

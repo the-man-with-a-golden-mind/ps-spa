@@ -10,6 +10,13 @@
       "routePattern": "/people/:name"
     },
     {
+      "constructor": "EffectsAndSubscriptions",
+      "dynamicParams": [],
+      "isNotFound": false,
+      "path": "/effects-and-subscriptions",
+      "routePattern": "/effects-and-subscriptions"
+    },
+    {
       "constructor": "Index",
       "dynamicParams": [],
       "isNotFound": false,

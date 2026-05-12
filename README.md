@@ -106,9 +106,8 @@ Because PureScript does not allow Elm-style trailing underscore module names, th
 
 ## What is still missing
 
-- richer request/form decoders
 - default ejected shared/auth modules comparable to a mature `elm-spa` app
-- a separate PureScript registry release; the current first-class release target is npm
+- richer PureScript-side request/form decoders for larger apps
 
 ## Tailwind
 
@@ -157,16 +156,12 @@ Each benchmark run now also writes JSON history to [`benchmarks/history`](benchm
 
 ## Publish Status
 
-The package is now configured for an npm release with:
+`ps-spa` is now prepared as two artifacts from one repo:
 
-- MIT licensing
-- public npm publish config
-- a package bin entry for `ps-spa`
-- scaffold output that targets `node_modules/ps-spa` instead of this repo layout
-- a built-in release gate via `npm run release:check`
+- an npm package that exposes the `ps-spa` CLI
+- a proper PureScript library package with [`spago.yaml`](spago.yaml) publish metadata for the PureScript Registry
 
-The remaining nuance is scope, not packaging:
-the first-class release target is npm, while a separate PureScript registry release is still future work.
+The npm package still ships the library sources for scaffolded apps today, but the repo now carries the package metadata needed for a real Registry release as well.
 See [docs/publishing.md](docs/publishing.md).
 
 ## HTML DSL

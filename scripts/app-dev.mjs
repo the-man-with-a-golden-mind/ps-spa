@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 
-import { buildBundledApp, parseRootArgs, repoRoot, viteBinary } from "./app-common.mjs";
+import { buildBundledApp, parseRootArgs, repoRoot, viteScript } from "./app-common.mjs";
 
 function watchedDirectories(root) {
   return [
@@ -13,6 +13,11 @@ function watchedDirectories(root) {
 }
 
 function shouldRebuild(fileName) {
+  const normalized = fileName.split(path.sep).join("/");
+  if (normalized === "Generated" || normalized.startsWith("Generated/")) {
+    return false;
+  }
+
   return [".js", ".purs"].includes(path.extname(fileName));
 }
 
@@ -21,7 +26,7 @@ async function main() {
     host: "127.0.0.1",
     port: 5173
   });
-  const vite = viteBinary(options.root);
+  const vite = viteScript(options.root);
 
   if (!fs.existsSync(vite)) {
     throw new Error(`Missing Vite in ${path.relative(process.cwd(), vite)}. Run npm install or bun install in ${path.relative(process.cwd(), options.root) || "."}.`);
@@ -60,7 +65,7 @@ async function main() {
     })
   );
 
-  const server = spawn(vite, ["--host", options.host, "--port", String(options.port)], {
+  const server = spawn(process.execPath, [vite, "--host", options.host, "--port", String(options.port)], {
     cwd: options.root,
     stdio: "inherit"
   });

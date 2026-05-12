@@ -11,6 +11,7 @@ import PsSpa.LoadResult as LoadResult
 import PsSpa.LoadedPage as LoadedPage
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind)
+import Unsafe.Coerce (unsafeCoerce)
 import Pages.Index as IndexPage
 import Pages.People.NameParam as PeopleNameParamPage
 import Pages.NotFound as NotFoundPage
@@ -44,24 +45,24 @@ loadPage
   -> LoadResult.LoadResult shared Route command subscription
 loadPage shared request =
   case request.route of
-    Index -> decide IndexPage.page IndexPage.protect shared request
-    PeopleNameParam _ -> decide PeopleNameParamPage.page PeopleNameParamPage.protect shared request
-    NotFound -> decide NotFoundPage.page NotFoundPage.protect shared request
+    Index -> unsafeDecide IndexPage.page IndexPage.protect shared request
+    PeopleNameParam _ -> unsafeDecide PeopleNameParamPage.page PeopleNameParamPage.protect shared request
+    NotFound -> unsafeDecide NotFoundPage.page NotFoundPage.protect shared request
 
-decide
-  :: forall model msg shared command subscription
-   . (Request -> Page.Page model msg shared Route command subscription)
+unsafeDecide
+  :: forall model msg shared command subscription pageCommand pageSubscription
+   . (Request -> Page.Page model msg shared Route pageCommand pageSubscription)
   -> (shared -> Request -> Maybe Route)
   -> shared
   -> Request
   -> LoadResult.LoadResult shared Route command subscription
-decide load protect shared request =
+unsafeDecide load protect shared request =
   case protect shared request of
     Just redirect ->
       LoadResult.Redirect redirect
 
     Nothing ->
-      LoadResult.Loaded (LoadedPage.fromPage (load request))
+      LoadResult.Loaded (LoadedPage.fromPage (unsafeCoerce (load request)))
 
 metaIndex :: PageMeta
 metaIndex =
