@@ -1,6 +1,6 @@
 {
   "name": "ps-spa",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "File-based SPA scaffolding and runtime for PureScript inspired by elm-spa",
   "license": "MIT",
   "author": "Michal Majchrzak",
