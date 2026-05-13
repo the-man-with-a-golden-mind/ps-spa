@@ -1,9 +1,9 @@
 # Publishing Readiness
 
-`ps-spa` is now shaped as two publishable surfaces:
+`ps-spa` should be treated primarily as a PureScript library, with a bundled CLI as a secondary surface.
 
-- an npm package for the CLI and scaffolding workflow
-- a PureScript library package with Registry-oriented metadata in [`spago.yaml`](../spago.yaml)
+- the PureScript library package described by [`spago.yaml`](../spago.yaml)
+- the npm package that ships the CLI and currently also ships the library sources
 
 ## Library Shape
 
@@ -26,10 +26,10 @@ This follows the modern Spago / Registry model documented by the official Spago 
 
 ## npm / CLI Artifact
 
-The npm package is still the operational CLI release:
+The npm package is currently the operational delivery vehicle:
 
 - it exposes the `ps-spa` binary
-- it ships the PureScript framework sources in `src`
+- it ships the PureScript library sources in `src`
 - scaffolded apps can consume those sources from `node_modules/ps-spa/src/**/*.purs`
 - scaffolded apps also consume the Vite plugin from `ps-spa/scripts/vite-plugin.mjs`
 
@@ -61,6 +61,6 @@ That is a local tooling limitation, not a missing package boundary in the repo.
 
 ## Still Separate Concerns
 
-- npm CLI release and PureScript Registry release are related, but not the same artifact
+- library release and CLI release are related, but not the same artifact
 - consumer app scaffolding can stay npm-first even when the library is also published to the Registry
 - CI-driven publish automation and authenticated Registry ownership operations are still future work

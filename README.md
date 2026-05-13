@@ -1,6 +1,6 @@
 ![ps-spa logo](logo.png)
 
-`ps-spa` is a PureScript-first attempt to recreate the `elm-spa` workflow with:
+`ps-spa` is a PureScript library for file-based SPAs, with a bundled CLI that recreates the `elm-spa` workflow:
 
 - file-based routing from `src/Pages`
 - a TEA-style page model with `static`, `sandbox`, `element`, and `advanced` page kinds
@@ -18,9 +18,9 @@ The most useful supporting docs are:
 - [Agent Instructions](AGENTS.md)
 - [Publishing Readiness](docs/publishing.md)
 
-This repository currently contains the framework foundation:
+This repository currently contains:
 
-- PureScript core types in [`src/PsSpa`](src/PsSpa)
+- the PureScript library in [`src/PsSpa`](src/PsSpa)
 - a zero-dependency Node CLI in [`scripts/ps-spa.mjs`](scripts/ps-spa.mjs)
 - route/codegen tests in [`tests-js`](tests-js)
 - an Elm SPA feature analysis in [`docs/elm-spa-analysis.md`](docs/elm-spa-analysis.md)
@@ -154,14 +154,14 @@ This is still not literally fail-proof. What it has now is a much stronger safet
 
 Each benchmark run now also writes JSON history to [`benchmarks/history`](benchmarks/history), and `npm run bench:verify` enforces the thresholds from [`benchmarks/thresholds.json`](benchmarks/thresholds.json).
 
-## Publish Status
+## Library Status
 
-`ps-spa` is now prepared as two artifacts from one repo:
+`ps-spa` is one repo with two publish surfaces:
 
-- an npm package that exposes the `ps-spa` CLI
-- a proper PureScript library package with [`spago.yaml`](spago.yaml) publish metadata for the PureScript Registry
+- the PureScript library package defined by [`spago.yaml`](spago.yaml)
+- the npm package that also exposes the `ps-spa` CLI
 
-The npm package still ships the library sources for scaffolded apps today, but the repo now carries the package metadata needed for a real Registry release as well.
+The CLI exists to scaffold and maintain apps around the library. The repo still ships the PureScript sources through the npm package today, but the package metadata is now aligned for a real library release as well.
 See [docs/publishing.md](docs/publishing.md).
 
 ## HTML DSL

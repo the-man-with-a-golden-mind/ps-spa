@@ -169,14 +169,14 @@ pageHelpersWrapExpectedConstructors = do
         { init: { model: 1, effect: [ "boot" ] }
         , update: \msg model -> { model: model + msg, effect: [ "tick" ] }
         , view: \model -> emptyDocument ("Element " <> show model)
-        , subscriptions: \_ -> [ "clock" ]
+        , subscriptions: \_ -> [ Nothing ]
         }
     advancedPage =
       Page.advanced
         { init: { model: 2, effect: SpaEffect.push "home" }
         , update: \msg model -> { model: model + msg, effect: SpaEffect.replace "settings" }
         , view: \model -> emptyDocument ("Advanced " <> show model)
-        , subscriptions: \_ -> [ "socket" ]
+        , subscriptions: \_ -> [ Nothing ]
         }
 
   assertEqual "static helper wraps StaticPage" "static" (pageTag staticPage)

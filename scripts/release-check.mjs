@@ -22,6 +22,7 @@ function main() {
   const failures = [];
   const pkg = readJson(path.join(packageRoot, "package.json"));
   const cliSource = fs.readFileSync(path.join(packageRoot, "scripts", "ps-spa.mjs"), "utf8");
+  const packageSetSource = fs.readFileSync(path.join(packageRoot, "packages.dhall"), "utf8");
   const spagoYamlPath = path.join(packageRoot, "spago.yaml");
   const spagoYamlSource = fs.existsSync(spagoYamlPath) ? fs.readFileSync(spagoYamlPath, "utf8") : "";
 
@@ -37,10 +38,19 @@ function main() {
   requireField(Array.isArray(pkg.files) && pkg.files.includes("LICENSE"), "package.json files must include LICENSE", failures);
   requireField(Array.isArray(pkg.files) && pkg.files.includes("spago.yaml"), "package.json files must include spago.yaml", failures);
   requireField(cliSource.startsWith("#!/usr/bin/env node"), "scripts/ps-spa.mjs must keep a node shebang", failures);
+  requireField(
+    !packageSetSource.includes("https://github.com/purescript/package-sets/releases/download/"),
+    "packages.dhall must be vendored so scaffolded apps do not depend on a network fetch at dev/build time",
+    failures
+  );
   requireField(fs.existsSync(path.join(packageRoot, "LICENSE")), "LICENSE file is missing", failures);
   requireField(fs.existsSync(spagoYamlPath), "spago.yaml is missing", failures);
   requireField(/package:\s*\n\s*name:\s*ps-spa/.test(spagoYamlSource), "spago.yaml must declare package.name = ps-spa", failures);
-  requireField(/publish:\s*\n\s*version:\s*0\.1\.0/.test(spagoYamlSource), "spago.yaml must declare publish.version", failures);
+  requireField(
+    new RegExp(`publish:\\s*\\n\\s*version:\\s*${pkg.version.replace(/\./g, "\\.")}`).test(spagoYamlSource),
+    "spago.yaml publish.version must match package.json version",
+    failures
+  );
   requireField(/license:\s*MIT/.test(spagoYamlSource), "spago.yaml must declare publish.license = MIT", failures);
   requireField(/githubOwner:\s*the-man-with-a-golden-mind/.test(spagoYamlSource), "spago.yaml must declare publish.location.githubOwner", failures);
   requireField(/githubRepo:\s*ps-spa/.test(spagoYamlSource), "spago.yaml must declare publish.location.githubRepo", failures);
@@ -75,6 +85,11 @@ function main() {
   requireField(
     scaffoldSpago.includes('packages = ./node_modules/ps-spa/packages.dhall'),
     "scaffolded spago.dhall must reference node_modules/ps-spa/packages.dhall",
+    failures
+  );
+  requireField(
+    scaffoldSpago.includes('"const"') && scaffoldSpago.includes('"unsafe-coerce"'),
+    "scaffolded spago.dhall must include direct dependencies required by generated modules",
     failures
   );
   requireField(

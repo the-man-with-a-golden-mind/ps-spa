@@ -24,6 +24,8 @@ import {
   titleFromRoute
 } from "../scripts/ps-spa.mjs";
 
+const packageManifest = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+
 test("pascalToKebab matches Elm SPA style segments", () => {
   assert.equal(pascalToKebab("AboutUs"), "about-us");
   assert.equal(pascalToKebab("APIKey"), "api-key");
@@ -194,7 +196,7 @@ test("collectAppScaffoldFiles targets installed package paths for consumer apps"
   assert.equal(pkg.packageManager, "bun@1.3.9");
   assert.equal(pkg.scripts.build, "bunx --bun vite build");
   assert.equal(pkg.scripts.dev, "bunx --bun vite");
-  assert.equal(pkg.dependencies["ps-spa"], "^0.1.0");
+  assert.equal(pkg.dependencies["ps-spa"], `^${packageManifest.version}`);
   assert.match(spago, /packages = \.\/node_modules\/ps-spa\/packages\.dhall/);
   assert.match(spago, /"node_modules\/ps-spa\/src\/\*\*\/\*\.purs"/);
   assert.match(viteConfig, /import \{ psSpaVite \} from "ps-spa\/scripts\/vite-plugin\.mjs"/);

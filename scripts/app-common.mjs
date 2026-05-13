@@ -81,16 +81,19 @@ export function runCommand(command, args, options = {}) {
 }
 
 export async function buildBundledApp(root) {
-  const pursOutputAbsolute = path.join(root, ".spago-output");
+  const pursOutputAbsolute = path.join(root, "output");
+  const cacheHome = path.join(root, ".cache");
   const jsRuntime = process.execPath;
+
+  fs.mkdirSync(cacheHome, { recursive: true });
 
   await runCommand(jsRuntime, [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"], { cwd: root });
   await runCommand(
     "spago",
-    ["-x", "spago.dhall", "-c", "skip", "build", "-u", "--output .spago-output"],
+    ["-x", "spago.dhall", "-c", "skip", "build"],
     {
       cwd: root,
-      env: { ...process.env, XDG_CACHE_HOME: path.join(repoRoot, ".cache") }
+      env: { ...process.env, XDG_CACHE_HOME: cacheHome }
     }
   );
   await runCommand(
