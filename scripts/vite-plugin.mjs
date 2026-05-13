@@ -69,20 +69,14 @@ export function psSpaVite(options = {}) {
     },
     configureServer(server) {
       serverRef = server;
-      watchers = watchedDirectories(root).map((directory) =>
-        fs.watch(directory, { recursive: true }, (_eventType, fileName) => {
-          if (!fileName) return;
 
-          const absolutePath = path.join(directory, String(fileName));
-          if (!shouldRebuild(absolutePath)) return;
-
+      server.watcher.on("all", (event, filePath) => {
+        if (shouldRebuild(filePath)) {
           void scheduleBuild();
-        })
-      );
+        }
+      });
 
       void scheduleBuild();
-
-      server.httpServer?.once("close", cleanup);
 
       return cleanup;
     }

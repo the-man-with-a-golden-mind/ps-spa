@@ -11,6 +11,7 @@ import PsSpa.LoadResult as LoadResult
 import PsSpa.LoadedPage as LoadedPage
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind)
+import Unsafe.Coerce (unsafeCoerce)
 import Pages.Marketing.Hero as MarketingHeroPage
 import Pages.Guides.SlugParam as GuidesSlugParamPage
 import Pages.Index as IndexPage
@@ -47,25 +48,25 @@ loadPage
   -> LoadResult.LoadResult shared Route command subscription
 loadPage shared request =
   case request.route of
-    MarketingHero -> decide MarketingHeroPage.page MarketingHeroPage.protect shared request
-    GuidesSlugParam _ -> decide GuidesSlugParamPage.page GuidesSlugParamPage.protect shared request
-    Index -> decide IndexPage.page IndexPage.protect shared request
-    NotFound -> decide NotFoundPage.page NotFoundPage.protect shared request
+    MarketingHero -> unsafeDecide MarketingHeroPage.page MarketingHeroPage.protect shared request
+    GuidesSlugParam _ -> unsafeDecide GuidesSlugParamPage.page GuidesSlugParamPage.protect shared request
+    Index -> unsafeDecide IndexPage.page IndexPage.protect shared request
+    NotFound -> unsafeDecide NotFoundPage.page NotFoundPage.protect shared request
 
-decide
-  :: forall model msg shared command subscription
-   . (Request -> Page.Page model msg shared Route command subscription)
+unsafeDecide
+  :: forall model msg shared command subscription pageCommand pageSubscription
+   . (Request -> Page.Page model msg shared Route pageCommand pageSubscription)
   -> (shared -> Request -> Maybe Route)
   -> shared
   -> Request
   -> LoadResult.LoadResult shared Route command subscription
-decide load protect shared request =
+unsafeDecide load protect shared request =
   case protect shared request of
     Just redirect ->
       LoadResult.Redirect redirect
 
     Nothing ->
-      LoadResult.Loaded (LoadedPage.fromPage (load request))
+      LoadResult.Loaded (LoadedPage.fromPage (unsafeCoerce (load request)))
 
 metaMarketingHero :: PageMeta
 metaMarketingHero =

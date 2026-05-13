@@ -6,6 +6,7 @@ module Generated.App
 
 import Prelude
 
+import Data.Const (Const(..))
 import Effect (Effect)
 import Generated.Pages as Pages
 import Generated.Route as Route
@@ -15,9 +16,9 @@ import PsSpa.Runtime as Runtime
 type AppConfig shared command subscription =
   { initialShared :: shared
   , onCommand :: command -> Effect Unit
-  , onSubscription :: subscription -> Effect Browser.Cleanup
+  , onSubscription :: forall msg. (msg -> Effect Unit) -> subscription msg -> Effect Browser.Cleanup
   , rootId :: String
-  , sharedSubscriptions :: Route.Request -> shared -> Array subscription
+  , sharedSubscriptions :: Route.Request -> shared -> Array (subscription Void)
   }
 
 start :: Effect Unit
@@ -25,7 +26,7 @@ start =
   startWith
     { initialShared: unit
     , onCommand: absurd
-    , onSubscription: absurd
+    , onSubscription: \_ (Const impossible) -> absurd impossible
     , rootId: "app"
     , sharedSubscriptions: \_ _ -> []
     }
