@@ -42,7 +42,7 @@ export async function buildBundledApp(root) {
   };
 
   await runCommand(jsRuntime, [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"], { cwd: root, env });
-  await runCommand("spago", ["build"], { cwd: root, env });
+  // `spago bundle` runs `spago build` itself — no need to invoke it separately.
   await runCommand(
     "spago",
     ["bundle", "--module", "Main", "--outfile", path.join("public", "app.js"), "--platform", "browser"],
