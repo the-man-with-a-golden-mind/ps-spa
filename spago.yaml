@@ -23,6 +23,3 @@ package:
     location:
       githubOwner: the-man-with-a-golden-mind
       githubRepo: ps-spa
-    include:
-      - "test/**/*.purs"
-      - "test/**/*.js"
