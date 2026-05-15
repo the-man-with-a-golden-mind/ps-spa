@@ -6,40 +6,6 @@ import { fileURLToPath } from "node:url";
 
 export const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export function parseRootArgs(argv, defaults = {}) {
-  const options = {
-    root: process.cwd(),
-    ...defaults
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
-
-    if (argument === "--root") {
-      options.root = path.resolve(process.cwd(), argv[index + 1] ?? ".");
-      index += 1;
-      continue;
-    }
-
-    if (argument === "--host") {
-      options.host = argv[index + 1] ?? options.host;
-      index += 1;
-      continue;
-    }
-
-    if (argument === "--port") {
-      options.port = Number(argv[index + 1] ?? options.port);
-      index += 1;
-    }
-  }
-
-  return options;
-}
-
-export function viteScript(root) {
-  return path.join(root, "node_modules", "vite", "bin", "vite.js");
-}
-
 export function collectJsFiles(rootDir) {
   const files = [];
 

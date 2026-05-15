@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 import { collectAppScaffoldFiles } from "../scripts/cli/scaffold.mjs";
 import {
   addPage,
   browserBenchmarkManifestFile,
   browserBenchmarkRuntimeFile,
+  bumpVersion,
   compareRoutes,
   ensureTailwindScaffold,
   doctorProject,
@@ -19,6 +21,7 @@ import {
   generateRouteModule,
   pageFileToRouteInfo,
   pascalToKebab,
+  readCurrentVersion,
   routeToPageFile,
   runBenchmarkSuite,
   titleFromRoute
@@ -211,7 +214,7 @@ test("collectAppScaffoldFiles uses a file dependency when scaffolding from the s
   assert.match(pkg.dependencies["ps-spa"], /^file:/);
 });
 
-test("ensureTailwindScaffold patches package.json and creates config files", () => {
+test("ensureTailwindScaffold patches package.json, vite.config.mjs and creates the css file", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-tailwind-"));
   fs.writeFileSync(
     path.join(tmp, "package.json"),
@@ -226,14 +229,25 @@ test("ensureTailwindScaffold patches package.json and creates config files", () 
       2
     )
   );
+  fs.writeFileSync(
+    path.join(tmp, "vite.config.mjs"),
+    `import { defineConfig } from "vite";\nimport { psSpaVite } from "ps-spa/scripts/vite-plugin.mjs";\n\nexport default defineConfig({\n  plugins: [psSpaVite()]\n});\n`
+  );
 
   ensureTailwindScaffold(tmp);
 
   const pkg = JSON.parse(fs.readFileSync(path.join(tmp, "package.json"), "utf8"));
-  assert.equal(pkg.devDependencies.tailwindcss, "^3.4.17");
-  assert.ok(fs.existsSync(path.join(tmp, "tailwind.config.cjs")));
-  assert.ok(fs.existsSync(path.join(tmp, "postcss.config.cjs")));
+  assert.equal(pkg.devDependencies.tailwindcss, "^4.3.0");
+  assert.equal(pkg.devDependencies["@tailwindcss/vite"], "^4.3.0");
   assert.ok(fs.existsSync(path.join(tmp, "styles", "tailwind.css")));
+  assert.match(
+    fs.readFileSync(path.join(tmp, "styles", "tailwind.css"), "utf8"),
+    /@import "tailwindcss"/
+  );
+
+  const viteConfig = fs.readFileSync(path.join(tmp, "vite.config.mjs"), "utf8");
+  assert.match(viteConfig, /import tailwindcss from "@tailwindcss\/vite"/);
+  assert.match(viteConfig, /plugins: \[tailwindcss\(\), psSpaVite\(\)\]/);
 });
 
 test("addPage creates a tailwind page and regenerates route plus page registries", () => {
@@ -245,6 +259,10 @@ test("addPage creates a tailwind page and regenerates route plus page registries
     path.join(tmp, "package.json"),
     JSON.stringify({ name: "tmp-ps-spa", private: true, type: "module", scripts: {} }, null, 2)
   );
+  fs.writeFileSync(
+    path.join(tmp, "vite.config.mjs"),
+    `import { defineConfig } from "vite";\nimport { psSpaVite } from "ps-spa/scripts/vite-plugin.mjs";\n\nexport default defineConfig({\n  plugins: [psSpaVite()]\n});\n`
+  );
 
   const result = addPage(tmp, "/marketing/hero", "tailwind");
 
@@ -253,11 +271,14 @@ test("addPage creates a tailwind page and regenerates route plus page registries
   assert.ok(fs.existsSync(path.join(tmp, "src", "Generated", "Pages.purs")));
   assert.ok(fs.existsSync(path.join(tmp, "src", "Generated", "App.purs")));
   assert.ok(fs.existsSync(path.join(tmp, "src", "Generated", "Link.purs")));
-  assert.ok(fs.existsSync(path.join(tmp, "tailwind.config.cjs")));
+  assert.ok(fs.existsSync(path.join(tmp, "styles", "tailwind.css")));
   assert.ok(fs.existsSync(path.join(tmp, "tests-generated", "MarketingHero.test.mjs")));
   assert.ok(fs.existsSync(path.join(tmp, "benchmarks-generated", "MarketingHero.bench.mjs")));
   assert.ok(fs.existsSync(path.join(tmp, browserBenchmarkManifestFile())));
   assert.ok(fs.existsSync(path.join(tmp, browserBenchmarkRuntimeFile())));
+  const viteConfig = fs.readFileSync(path.join(tmp, "vite.config.mjs"), "utf8");
+  assert.match(viteConfig, /import tailwindcss from "@tailwindcss\/vite"/);
+  assert.match(viteConfig, /plugins: \[tailwindcss\(\), psSpaVite\(\)\]/);
   assert.match(
     fs.readFileSync(path.join(tmp, "src", "Pages", "Marketing", "Hero.purs"), "utf8"),
     /kind = Tailwind/
@@ -293,6 +314,10 @@ test("doctorProject reports a clean generated project", () => {
     path.join(tmp, "package.json"),
     JSON.stringify({ name: "tmp-ps-spa", private: true, type: "module", scripts: {} }, null, 2)
   );
+  fs.writeFileSync(
+    path.join(tmp, "vite.config.mjs"),
+    `import { defineConfig } from "vite";\nimport { psSpaVite } from "ps-spa/scripts/vite-plugin.mjs";\n\nexport default defineConfig({\n  plugins: [psSpaVite()]\n});\n`
+  );
 
   addPage(tmp, "/marketing/hero", "tailwind");
   const result = doctorProject(tmp);
@@ -321,6 +346,137 @@ test("doctorProject detects generated drift", () => {
 
   assert.equal(result.ok, false);
   assert.match(result.issues.join("\n"), /DRIFT: src\/Generated\/Route\.purs/);
+});
+
+test("bumpVersion rewrites package.json and spago.yaml in lockstep", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-bump-"));
+  fs.writeFileSync(
+    path.join(tmp, "package.json"),
+    `${JSON.stringify({ name: "ps-spa", version: "0.1.2", private: false }, null, 2)}\n`
+  );
+  fs.writeFileSync(
+    path.join(tmp, "spago.yaml"),
+    `package:
+  name: ps-spa
+  publish:
+    version: 0.1.2
+    license: MIT
+`
+  );
+
+  assert.equal(readCurrentVersion(tmp), "0.1.2");
+
+  const result = bumpVersion(tmp, "0.2.0");
+  assert.equal(result.changed, true);
+  assert.equal(result.currentVersion, "0.1.2");
+  assert.equal(result.nextVersion, "0.2.0");
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(tmp, "package.json"), "utf8"));
+  assert.equal(pkg.version, "0.2.0");
+
+  const spago = fs.readFileSync(path.join(tmp, "spago.yaml"), "utf8");
+  assert.match(spago, /version: 0\.2\.0/);
+  assert.doesNotMatch(spago, /version: 0\.1\.2/);
+
+  const noop = bumpVersion(tmp, "0.2.0");
+  assert.equal(noop.changed, false);
+});
+
+test("bumpVersion rejects invalid semver", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-bump-bad-"));
+  fs.writeFileSync(
+    path.join(tmp, "package.json"),
+    `${JSON.stringify({ name: "ps-spa", version: "0.1.0" }, null, 2)}\n`
+  );
+  fs.writeFileSync(path.join(tmp, "spago.yaml"), "package:\n  publish:\n    version: 0.1.0\n");
+
+  assert.throws(() => bumpVersion(tmp, "not-a-version"), /Invalid version/);
+});
+
+function makeVersionFixture(prefix, current) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(
+    path.join(tmp, "package.json"),
+    `${JSON.stringify({ name: "ps-spa", version: current, private: false }, null, 2)}\n`
+  );
+  fs.writeFileSync(
+    path.join(tmp, "spago.yaml"),
+    `package:\n  name: ps-spa\n  publish:\n    version: ${current}\n    license: MIT\n`
+  );
+  return tmp;
+}
+
+test("bumpVersion supports patch / minor / major shortcuts", () => {
+  const patchTmp = makeVersionFixture("ps-spa-bump-patch-", "0.1.2");
+  assert.equal(bumpVersion(patchTmp, "patch").nextVersion, "0.1.3");
+
+  const minorTmp = makeVersionFixture("ps-spa-bump-minor-", "0.1.2");
+  assert.equal(bumpVersion(minorTmp, "minor").nextVersion, "0.2.0");
+
+  const majorTmp = makeVersionFixture("ps-spa-bump-major-", "0.1.2");
+  const major = bumpVersion(majorTmp, "major");
+  assert.equal(major.nextVersion, "1.0.0");
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(majorTmp, "package.json"), "utf8"));
+  assert.equal(pkg.version, "1.0.0");
+  assert.match(fs.readFileSync(path.join(majorTmp, "spago.yaml"), "utf8"), /version: 1\.0\.0/);
+});
+
+function gitInit(cwd) {
+  const opts = { cwd, stdio: "ignore" };
+  execFileSync("git", ["init", "--initial-branch=main"], opts);
+  execFileSync("git", ["config", "user.email", "test@example.com"], opts);
+  execFileSync("git", ["config", "user.name", "Test"], opts);
+  execFileSync("git", ["config", "commit.gpgsign", "false"], opts);
+}
+
+test("bumpVersion --commit --tag creates a commit and an annotated git tag", () => {
+  const tmp = makeVersionFixture("ps-spa-bump-git-", "0.1.2");
+  gitInit(tmp);
+  execFileSync("git", ["add", "."], { cwd: tmp, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "initial"], { cwd: tmp, stdio: "ignore" });
+
+  const result = bumpVersion(tmp, "patch", { commit: true, tag: true });
+  assert.equal(result.nextVersion, "0.1.3");
+  assert.equal(result.committed, true);
+  assert.equal(result.tagged, true);
+
+  const lastSubject = execFileSync("git", ["log", "-1", "--pretty=%s"], { cwd: tmp, encoding: "utf8" }).trim();
+  assert.equal(lastSubject, "v0.1.3");
+
+  const tags = execFileSync("git", ["tag", "--list"], { cwd: tmp, encoding: "utf8" }).trim();
+  assert.equal(tags, "v0.1.3");
+});
+
+test("bumpVersion --commit refuses to run with unrelated dirty changes", () => {
+  const tmp = makeVersionFixture("ps-spa-bump-dirty-", "0.1.2");
+  gitInit(tmp);
+  fs.writeFileSync(path.join(tmp, "tracked.txt"), "initial\n");
+  execFileSync("git", ["add", "."], { cwd: tmp, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "initial"], { cwd: tmp, stdio: "ignore" });
+  fs.writeFileSync(path.join(tmp, "tracked.txt"), "dirty\n");
+
+  assert.throws(() => bumpVersion(tmp, "patch", { commit: true }), /uncommitted changes/);
+});
+
+test("verifyProject flags version drift between package.json and spago.yaml", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-version-drift-"));
+  fs.mkdirSync(path.join(tmp, "src", "Pages"), { recursive: true });
+  fs.writeFileSync(path.join(tmp, "src", "Pages", "Index.purs"), "module Pages.Index where\n");
+  fs.writeFileSync(path.join(tmp, "src", "Pages", "NotFound.purs"), "module Pages.NotFound where\n");
+  fs.writeFileSync(
+    path.join(tmp, "package.json"),
+    `${JSON.stringify({ name: "ps-spa", version: "0.2.0", private: false }, null, 2)}\n`
+  );
+  fs.writeFileSync(
+    path.join(tmp, "spago.yaml"),
+    `package:\n  name: ps-spa\n  publish:\n    version: 0.1.2\n`
+  );
+  addPage(tmp, "/anything", "static");
+
+  const result = doctorProject(tmp);
+  assert.equal(result.ok, false);
+  assert.match(result.issues.join("\n"), /version drift/);
 });
 
 test("runBenchmarkSuite writes history JSON and evaluates thresholds", async () => {

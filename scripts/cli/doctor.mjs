@@ -5,7 +5,12 @@ import { collectBrowserBenchmarkArtifacts } from "./browser-bench.mjs";
 import { generateAppModule, generateLinkModule, generatePagesModule, generateRouteModule } from "./codegen.mjs";
 import { collectQualityArtifacts } from "./quality.mjs";
 import { scanPages } from "./routes.mjs";
-import { tailwindPackageJsonPatch, tailwindScaffoldFiles } from "./tailwind.mjs";
+import {
+  tailwindObsoleteFiles,
+  tailwindPackageJsonPatch,
+  tailwindScaffoldFiles
+} from "./tailwind.mjs";
+import { extractSpagoPublishVersion } from "./version.mjs";
 
 function readUtf8IfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;
@@ -77,20 +82,34 @@ function hasTailwindPages(root, routes) {
   });
 }
 
-function collectTailwindChecks(root, required) {
-  if (!required) return [];
+function collectTailwindObsoleteChecks(root) {
+  return tailwindObsoleteFiles
+    .filter((relativePath) => fs.existsSync(path.join(root, relativePath)))
+    .map((relativePath) => ({ relativePath, status: "extra" }));
+}
 
-  const checks = tailwindScaffoldFiles.map((file) => ({
-    relativePath: file.path,
-    status: fs.existsSync(path.join(root, file.path)) ? "ok" : "missing"
-  }));
+function collectTailwindChecks(root, required) {
+  if (!required) {
+    return collectTailwindObsoleteChecks(root);
+  }
+
+  const checks = tailwindScaffoldFiles.map((file) =>
+    compareTextArtifact(root, file.path, file.content)
+  );
+
+  const viteConfig = readUtf8IfExists(path.join(root, "vite.config.mjs"));
+  if (viteConfig === null) {
+    checks.push({ relativePath: "vite.config.mjs", status: "missing" });
+  } else if (!viteConfig.includes("@tailwindcss/vite")) {
+    checks.push({ relativePath: "vite.config.mjs#@tailwindcss/vite", status: "missing" });
+  }
 
   const packageJsonPath = path.join(root, "package.json");
   const packageJson = readUtf8IfExists(packageJsonPath);
 
   if (packageJson === null) {
     checks.push({ relativePath: "package.json", status: "missing" });
-    return checks;
+    return [...checks, ...collectTailwindObsoleteChecks(root)];
   }
 
   const parsed = JSON.parse(packageJson);
@@ -109,7 +128,7 @@ function collectTailwindChecks(root, required) {
     });
   }
 
-  return checks;
+  return [...checks, ...collectTailwindObsoleteChecks(root)];
 }
 
 function collectGeneratedChecks(root, routes) {
@@ -149,11 +168,37 @@ function summarize(checks) {
   );
 }
 
+function collectVersionChecks(root) {
+  const packageJson = readUtf8IfExists(path.join(root, "package.json"));
+  const spagoYaml = readUtf8IfExists(path.join(root, "spago.yaml"));
+
+  if (packageJson === null || spagoYaml === null) return [];
+
+  const spagoVersion = extractSpagoPublishVersion(spagoYaml);
+  if (spagoVersion === null) return [];
+
+  const pkgVersion = JSON.parse(packageJson).version;
+  if (typeof pkgVersion !== "string") return [];
+
+  if (pkgVersion === spagoVersion) {
+    return [{ relativePath: "version (package.json <-> spago.yaml)", status: "ok" }];
+  }
+
+  return [
+    {
+      relativePath: `version drift: package.json=${pkgVersion} spago.yaml=${spagoVersion}`,
+      status: "drift"
+    }
+  ];
+}
+
 export function verifyProject(root) {
   const routes = scanPages(root);
+  const tailwindRequired = hasTailwindPages(root, routes);
   const generatedChecks = collectGeneratedChecks(root, routes);
-  const tailwindChecks = collectTailwindChecks(root, hasTailwindPages(root, routes));
-  const checks = [...generatedChecks, ...tailwindChecks];
+  const tailwindChecks = collectTailwindChecks(root, tailwindRequired);
+  const versionChecks = collectVersionChecks(root);
+  const checks = [...generatedChecks, ...tailwindChecks, ...versionChecks];
   const issues = checks
     .filter((check) => check.status !== "ok")
     .map((check) => `${check.status.toUpperCase()}: ${check.relativePath}`);
@@ -164,7 +209,7 @@ export function verifyProject(root) {
     ok: issues.length === 0,
     routes,
     summary: summarize(checks),
-    tailwindRequired: tailwindChecks.length > 0
+    tailwindRequired
   };
 }
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { doctorProject, verifyProject } from "./cli/doctor.mjs";
 import { addPage, createApp, generateFiles } from "./cli/project.mjs";
@@ -11,11 +12,15 @@ import { compareRoutes, pageFileToRouteInfo, routeToPageFile, scanPages, titleFr
 import { ensureTailwindScaffold } from "./cli/tailwind.mjs";
 import { generatePageTemplate } from "./cli/templates.mjs";
 import { pascalToKebab } from "./cli/naming.mjs";
+import { bumpVersion, readCurrentVersion } from "./cli/version.mjs";
+
+const frameworkRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export {
   addPage,
   browserBenchmarkManifestFile,
   browserBenchmarkRuntimeFile,
+  bumpVersion,
   compareRoutes,
   createApp,
   doctorProject,
@@ -28,6 +33,7 @@ export {
   generateRouteModule,
   pageFileToRouteInfo,
   pascalToKebab,
+  readCurrentVersion,
   routeToPageFile,
   runBenchmarkSuite,
   scanPages,
@@ -44,7 +50,12 @@ Usage:
   node scripts/ps-spa.mjs [--root <dir>] gen
   node scripts/ps-spa.mjs [--root <dir>] verify
   node scripts/ps-spa.mjs [--root <dir>] doctor
+  node scripts/ps-spa.mjs version
+  node scripts/ps-spa.mjs bump-version <semver|patch|minor|major> [--commit] [--tag]
   node scripts/run-browser-bench.mjs [--root <dir>] [--verify] [--open] [--port 4173]
+
+Note: \`version\` and \`bump-version\` always target the ps-spa framework
+package.json + spago.yaml, regardless of --root.
 `);
 }
 
@@ -128,6 +139,40 @@ async function main(argv) {
     }
 
     console.log(`Verified ${result.routes.length} page file(s); generated artifacts are in sync`);
+    return;
+  }
+
+  if (command === "version") {
+    console.log(readCurrentVersion(frameworkRoot));
+    return;
+  }
+
+  if (command === "bump-version") {
+    if (!firstArg) {
+      throw new Error(
+        "Missing version. Example: node scripts/ps-spa.mjs bump-version 0.2.0 (or patch|minor|major)"
+      );
+    }
+
+    const tag = remaining.includes("--tag");
+    const commit = tag || remaining.includes("--commit");
+
+    const result = bumpVersion(frameworkRoot, firstArg, { commit, tag });
+    if (!result.changed) {
+      console.log(`Version is already ${result.currentVersion}; nothing to do.`);
+      return;
+    }
+
+    console.log(`Bumped ps-spa framework: ${result.currentVersion} -> ${result.nextVersion}`);
+    for (const file of result.files) {
+      console.log(`  updated ${file}`);
+    }
+    if (result.committed) {
+      console.log(`  committed v${result.nextVersion}`);
+    }
+    if (result.tagged) {
+      console.log(`  tagged v${result.nextVersion}`);
+    }
     return;
   }
 
