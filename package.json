@@ -1,6 +1,6 @@
 {
   "name": "ps-spa",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "PureScript SPA library with file-based routing and a bundled CLI inspired by elm-spa",
   "license": "MIT",
   "author": "Michal Majchrzak",
