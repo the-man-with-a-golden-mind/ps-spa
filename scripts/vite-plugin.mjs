@@ -22,7 +22,7 @@ function shouldRebuild(root, filePath) {
   if (relative === "" || relative.startsWith("..")) return false;
   if (IGNORED_PREFIXES.some((prefix) => relative.startsWith(prefix))) return false;
 
-  if (relative === "spago.dhall") return true;
+  if (relative === "spago.yaml" || relative === "spago.dhall") return true;
 
   const ext = path.extname(filePath);
   if (ext !== ".purs" && ext !== ".js") return false;
@@ -104,7 +104,15 @@ export function psSpaVite(options = {}) {
     configureServer(server) {
       serverRef = server;
 
+      // Vite/chokidar emits an "add" event for every existing file during the initial
+      // scan. Ignore those — we only care about actual user edits.
+      let watcherReady = false;
+      server.watcher.on("ready", () => {
+        watcherReady = true;
+      });
+
       server.watcher.on("all", (_event, filePath) => {
+        if (!watcherReady) return;
         if (shouldRebuild(root, filePath)) {
           void scheduleBuild();
         }

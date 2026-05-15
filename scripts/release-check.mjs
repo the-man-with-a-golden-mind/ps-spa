@@ -60,21 +60,16 @@ function main() {
   const appRoot = path.join(tmpRoot, "demo-app");
   const files = collectAppScaffoldFiles(appRoot, installedPackageRoot);
   const scaffoldPackage = JSON.parse(files.find((file) => file.relativePath === "package.json").content);
-  const scaffoldSpago = files.find((file) => file.relativePath === "spago.dhall").content;
+  const scaffoldSpago = files.find((file) => file.relativePath === "spago.yaml").content;
 
   requireField(
-    scaffoldPackage.packageManager === "bun@1.3.9",
-    "scaffolded app must declare a Bun packageManager for the default Vite workflow",
+    scaffoldPackage.scripts.build === "vite build",
+    "scaffolded app build script must be runtime-agnostic (vite build)",
     failures
   );
   requireField(
-    scaffoldPackage.scripts.build === "bunx --bun vite build",
-    "scaffolded app build script must use Bun-native vite build",
-    failures
-  );
-  requireField(
-    scaffoldPackage.scripts.dev === "bunx --bun vite",
-    "scaffolded app dev script must use Bun-native vite",
+    scaffoldPackage.scripts.dev === "vite",
+    "scaffolded app dev script must be runtime-agnostic (vite)",
     failures
   );
   requireField(
@@ -83,18 +78,18 @@ function main() {
     failures
   );
   requireField(
-    scaffoldSpago.includes('packages = ./node_modules/ps-spa/packages.dhall'),
-    "scaffolded spago.dhall must reference node_modules/ps-spa/packages.dhall",
+    scaffoldSpago.includes('extraPackages:') && scaffoldSpago.includes('path: node_modules/ps-spa'),
+    "scaffolded spago.yaml must wire ps-spa via workspace.extraPackages with a node_modules path",
     failures
   );
   requireField(
-    scaffoldSpago.includes('"const"') && scaffoldSpago.includes('"unsafe-coerce"'),
-    "scaffolded spago.dhall must include direct dependencies required by generated modules",
+    scaffoldSpago.includes('- const') && scaffoldSpago.includes('- unsafe-coerce'),
+    "scaffolded spago.yaml must include direct dependencies required by generated modules",
     failures
   );
   requireField(
-    scaffoldSpago.includes('"node_modules/ps-spa/src/**/*.purs"'),
-    "scaffolded spago.dhall must reference node_modules/ps-spa/src/**/*.purs",
+    scaffoldSpago.includes('- ps-spa'),
+    "scaffolded spago.yaml must list ps-spa as a dependency",
     failures
   );
 

@@ -29,16 +29,17 @@ function packageJsonSource(root, packageRoot = repoRoot) {
       name: appNameFromRoot(root),
       private: true,
       type: "module",
-      packageManager: "bun@1.3.9",
       scripts: {
-        build: "bunx --bun vite build",
-        dev: "bunx --bun vite",
-        preview: "bunx --bun vite preview"
+        build: "vite build",
+        dev: "vite",
+        preview: "vite preview"
       },
       dependencies: {
         "ps-spa": packageDependency
       },
       devDependencies: {
+        esbuild: "^0.24.0",
+        spago: "^1.0.4",
         vite: "^5.4.19"
       }
     },
@@ -115,11 +116,21 @@ export default defineConfig({
 }
 
 function spagoSource(root, packageRoot = repoRoot) {
-  return `{ name = "${appNameFromRoot(root)}"
-, dependencies = [ ${exampleDependencies.map((dependency) => `"${dependency}"`).join(", ")} ]
-, packages = ./node_modules/ps-spa/packages.dhall
-, sources = [ "src/**/*.purs", "node_modules/ps-spa/src/**/*.purs" ]
-}
+  const deps = [...exampleDependencies, "ps-spa"]
+    .map((dependency) => `    - ${dependency}`)
+    .join("\n");
+
+  return `workspace:
+  packageSet:
+    registry: 41.2.0
+  extraPackages:
+    ps-spa:
+      path: node_modules/ps-spa
+
+package:
+  name: ${appNameFromRoot(root)}
+  dependencies:
+${deps}
 `;
 }
 
@@ -131,7 +142,7 @@ export function collectAppScaffoldFiles(root, packageRoot = repoRoot) {
   return [
     {
       content: spagoSource(root, packageRoot),
-      relativePath: "spago.dhall"
+      relativePath: "spago.yaml"
     },
     {
       content: mainModuleSource(),

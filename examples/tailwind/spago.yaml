@@ -1,0 +1,22 @@
+workspace:
+  packageSet:
+    registry: 41.2.0
+  extraPackages:
+    ps-spa:
+      path: node_modules/ps-spa
+
+package:
+  name: ps-spa-tailwind
+  dependencies:
+    - arrays
+    - const
+    - effect
+    - foldable-traversable
+    - integers
+    - maybe
+    - prelude
+    - psci-support
+    - refs
+    - strings
+    - unsafe-coerce
+    - ps-spa

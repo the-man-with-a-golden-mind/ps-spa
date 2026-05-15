@@ -6,25 +6,6 @@ import { fileURLToPath } from "node:url";
 
 export const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export function collectJsFiles(rootDir) {
-  const files = [];
-
-  function walk(currentDir) {
-    for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
-      const absolutePath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolutePath);
-      } else if (entry.isFile() && entry.name.endsWith(".js")) {
-        files.push(absolutePath);
-      }
-    }
-  }
-
-  walk(rootDir);
-  files.sort();
-  return files;
-}
-
 export function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -47,24 +28,24 @@ export function runCommand(command, args, options = {}) {
 }
 
 export async function buildBundledApp(root) {
-  const pursOutputAbsolute = path.join(root, "output");
   const cacheHome = path.join(root, ".cache");
   const jsRuntime = process.execPath;
 
   fs.mkdirSync(cacheHome, { recursive: true });
 
-  await runCommand(jsRuntime, [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"], { cwd: root });
+  // Make locally-installed binaries (e.g. esbuild used by `spago bundle`) findable.
+  const localBin = path.join(root, "node_modules", ".bin");
+  const env = {
+    ...process.env,
+    XDG_CACHE_HOME: cacheHome,
+    PATH: `${localBin}${path.delimiter}${process.env.PATH ?? ""}`
+  };
+
+  await runCommand(jsRuntime, [path.join(repoRoot, "scripts", "ps-spa.mjs"), "--root", root, "gen"], { cwd: root, env });
+  await runCommand("spago", ["build"], { cwd: root, env });
   await runCommand(
     "spago",
-    ["-x", "spago.dhall", "-c", "skip", "build"],
-    {
-      cwd: root,
-      env: { ...process.env, XDG_CACHE_HOME: cacheHome }
-    }
-  );
-  await runCommand(
-    "purs",
-    ["bundle", ...collectJsFiles(pursOutputAbsolute), "-m", "Main", "--main", "Main", "-o", path.join("public", "app.js")],
-    { cwd: root }
+    ["bundle", "--module", "Main", "--outfile", path.join("public", "app.js"), "--platform", "browser"],
+    { cwd: root, env }
   );
 }

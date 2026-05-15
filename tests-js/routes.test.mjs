@@ -193,15 +193,14 @@ test("collectAppScaffoldFiles targets installed package paths for consumer apps"
   const packageRoot = path.join(appRoot, "node_modules", "ps-spa");
   const files = collectAppScaffoldFiles(appRoot, packageRoot);
   const pkg = JSON.parse(files.find((file) => file.relativePath === "package.json").content);
-  const spago = files.find((file) => file.relativePath === "spago.dhall").content;
+  const spago = files.find((file) => file.relativePath === "spago.yaml").content;
   const viteConfig = files.find((file) => file.relativePath === "vite.config.mjs").content;
 
-  assert.equal(pkg.packageManager, "bun@1.3.9");
-  assert.equal(pkg.scripts.build, "bunx --bun vite build");
-  assert.equal(pkg.scripts.dev, "bunx --bun vite");
+  assert.equal(pkg.scripts.build, "vite build");
+  assert.equal(pkg.scripts.dev, "vite");
   assert.equal(pkg.dependencies["ps-spa"], `^${packageManifest.version}`);
-  assert.match(spago, /packages = \.\/node_modules\/ps-spa\/packages\.dhall/);
-  assert.match(spago, /"node_modules\/ps-spa\/src\/\*\*\/\*\.purs"/);
+  assert.match(spago, /extraPackages:\s*\n\s+ps-spa:\s*\n\s+path: node_modules\/ps-spa/);
+  assert.match(spago, /- ps-spa/);
   assert.match(viteConfig, /import \{ psSpaVite \} from "ps-spa\/scripts\/vite-plugin\.mjs"/);
   assert.match(viteConfig, /plugins: \[psSpaVite\(\)\]/);
 });
