@@ -1,8 +1,6 @@
-"use strict";
-
 var listeners = new Set();
 
-exports.emitNotice = function (notice) {
+export const emitNotice = function (notice) {
   return function () {
     listeners.forEach(function (listener) {
       listener(notice)();
@@ -10,7 +8,7 @@ exports.emitNotice = function (notice) {
   };
 };
 
-exports.every = function (milliseconds) {
+export const every = function (milliseconds) {
   return function (effect) {
     return function () {
       var id = window.setInterval(function () {
@@ -24,7 +22,7 @@ exports.every = function (milliseconds) {
   };
 };
 
-exports.subscribeNotice = function (handler) {
+export const subscribeNotice = function (handler) {
   return function () {
     listeners.add(handler);
 

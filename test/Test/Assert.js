@@ -1,3 +1,3 @@
-exports.failTest = (message) => () => {
+export const failTest = (message) => () => {
   throw new Error(message);
 };

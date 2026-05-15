@@ -1,9 +1,4 @@
-const module = { exports: {} };
-const exports = module.exports;
-
-"use strict";
-
-exports.renderDocument = function (config) {
+export const renderDocument = function (config) {
   return function () {
     var root = document.getElementById(config.rootId) || document.body;
 
@@ -58,23 +53,23 @@ exports.renderDocument = function (config) {
   };
 };
 
-exports.currentPath = function () {
+export const currentPath = function () {
   return window.location.pathname + window.location.search + window.location.hash;
 };
 
-exports.pushUrl = function (url) {
+export const pushUrl = function (url) {
   return function () {
     window.history.pushState({}, "", url);
   };
 };
 
-exports.replaceUrl = function (url) {
+export const replaceUrl = function (url) {
   return function () {
     window.history.replaceState({}, "", url);
   };
 };
 
-exports.onPopState = function (handler) {
+export const onPopState = function (handler) {
   return function () {
     var listener = function () {
       handler();
@@ -88,7 +83,7 @@ exports.onPopState = function (handler) {
   };
 };
 
-exports.onInternalUrlRequest = function (handler) {
+export const onInternalUrlRequest = function (handler) {
   return function () {
     var listener = function (event) {
       if (event.defaultPrevented) {
@@ -125,11 +120,3 @@ exports.onInternalUrlRequest = function (handler) {
     };
   };
 };
-
-
-export const currentPath = module.exports.currentPath;
-export const onInternalUrlRequest = module.exports.onInternalUrlRequest;
-export const onPopState = module.exports.onPopState;
-export const pushUrl = module.exports.pushUrl;
-export const renderDocument = module.exports.renderDocument;
-export const replaceUrl = module.exports.replaceUrl;

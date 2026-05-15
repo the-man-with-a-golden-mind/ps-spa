@@ -3,7 +3,12 @@ import path from "node:path";
 import vm from "node:vm";
 import { performance } from "node:perf_hooks";
 
-const browserSource = fs.readFileSync(path.join(process.cwd(), "src", "PsSpa", "Browser.js"), "utf8");
+// Browser.js is shipped as an ES module (`export const X = ...`), but the harness
+// evaluates it inside `vm.Script` (classic script context). Rewrite the exports
+// inline so they land on `module.exports` like before.
+const browserSource = fs
+  .readFileSync(path.join(process.cwd(), "src", "PsSpa", "Browser.js"), "utf8")
+  .replace(/^export\s+const\s+(\w+)\s*=\s*/gm, "module.exports.$1 = ");
 
 function Text(value0) {
   this.value0 = value0;

@@ -30,20 +30,8 @@ export function generateBrowserBenchmarkManifest(routes) {
 }
 
 export function generateBrowserRuntimeModule() {
-  const browserSource = fs.readFileSync(browserSourceFile, "utf8");
-
-  return `const module = { exports: {} };
-const exports = module.exports;
-
-${browserSource}
-
-export const currentPath = module.exports.currentPath;
-export const onInternalUrlRequest = module.exports.onInternalUrlRequest;
-export const onPopState = module.exports.onPopState;
-export const pushUrl = module.exports.pushUrl;
-export const renderDocument = module.exports.renderDocument;
-export const replaceUrl = module.exports.replaceUrl;
-`;
+  // Browser.js is already an ES module — copy it through verbatim.
+  return fs.readFileSync(browserSourceFile, "utf8");
 }
 
 export function collectBrowserBenchmarkArtifacts(_root, routes) {
