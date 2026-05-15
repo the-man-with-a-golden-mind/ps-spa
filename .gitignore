@@ -1,0 +1,17 @@
+.cache
+.npm-cache
+.spago
+spago.lock
+output
+.ps-test-output
+.psc-ide-port
+.purs-repl
+node_modules/
+.claude/
+benchmarks/history/
+benchmarks/browser-history/
+examples/*/benchmarks/history/
+examples/*/benchmarks/browser-history/
+examples/*/public/app.js
+examples/*/.spago-output/
+examples/*/node_modules/
