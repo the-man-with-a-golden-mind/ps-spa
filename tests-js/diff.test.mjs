@@ -240,6 +240,184 @@ test("OnEvent passes the synthetic event to the handler", () => {
   assert.strictEqual(captured, fakeEvent);
 });
 
+test("legacy OnClick handler is fully removed when the attribute is dropped", () => {
+  const env = createEnvironment();
+  let fires = 0;
+
+  render(env, {
+    title: "",
+    body: [ node("button", [ onClick(() => { fires += 1; }) ], [ text("Go") ]) ]
+  });
+  const button = rootChildren(env)[0];
+  assert.equal((button.listeners.get("click") ?? []).length, 1);
+
+  render(env, {
+    title: "",
+    body: [ node("button", [], [ text("Go") ]) ]
+  });
+
+  assert.equal((button.listeners.get("click") ?? []).length, 0, "click listener cleared");
+});
+
+test("OnEvent listener is replaced (not added) when the handler changes", () => {
+  const env = createEnvironment();
+  let trail = [];
+
+  const firstHandler = (_e) => () => { trail.push("first"); };
+  render(env, {
+    title: "",
+    body: [ node("input", [ onEvent("input", firstHandler) ], []) ]
+  });
+  const input = rootChildren(env)[0];
+  assert.equal((input.listeners.get("input") ?? []).length, 1, "one listener after first render");
+
+  const secondHandler = (_e) => () => { trail.push("second"); };
+  render(env, {
+    title: "",
+    body: [ node("input", [ onEvent("input", secondHandler) ], []) ]
+  });
+
+  const listeners = input.listeners.get("input") ?? [];
+  assert.equal(listeners.length, 1, "still only one listener after swap");
+  listeners[0]({});
+  assert.deepEqual(trail, [ "second" ], "only the new handler fires");
+});
+
+test("boolean attribute true → false removes the attribute", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ node("button", [ attr("disabled", "disabled"), attr("type", "submit") ], [ text("Save") ]) ]
+  });
+  const button = rootChildren(env)[0];
+  assert.equal(button.getAttribute("disabled"), "disabled");
+
+  // Same element, but no disabled attribute this time.
+  render(env, {
+    title: "",
+    body: [ node("button", [ attr("type", "submit") ], [ text("Save") ]) ]
+  });
+  assert.strictEqual(rootChildren(env)[0], button, "button reused");
+  assert.equal(button.getAttribute("disabled"), null);
+  assert.equal(button.getAttribute("type"), "submit");
+});
+
+test("attribute added on rerender shows up without rebuilding", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ node("div", [], [ text("body") ]) ]
+  });
+  const div = rootChildren(env)[0];
+
+  render(env, {
+    title: "",
+    body: [ node("div", [ attr("data-state", "open"), attr("id", "panel") ], [ text("body") ]) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], div);
+  assert.equal(div.getAttribute("data-state"), "open");
+  assert.equal(div.getAttribute("id"), "panel");
+});
+
+test("mixing OnClick and OnEvent on the same element registers both", () => {
+  const env = createEnvironment();
+  let order = [];
+
+  render(env, {
+    title: "",
+    body: [ node("button",
+      [ onClick(() => { order.push("legacy"); })
+      , onEvent("mouseenter", (_e) => () => { order.push("enter"); })
+      ],
+      [ text("Hover & Click") ]
+    ) ]
+  });
+  const button = rootChildren(env)[0];
+
+  assert.equal((button.listeners.get("click") ?? []).length, 1);
+  assert.equal((button.listeners.get("mouseenter") ?? []).length, 1);
+
+  (button.listeners.get("mouseenter") ?? [])[0]({});
+  (button.listeners.get("click") ?? [])[0]({ preventDefault: () => {} });
+  assert.deepEqual(order, [ "enter", "legacy" ]);
+});
+
+test("rerendering from text-only body to element body replaces the node", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ text("plain") ]
+  });
+  const initial = rootChildren(env)[0];
+  assert.equal(initial.nodeType, 3, "first render produced a text node");
+
+  render(env, {
+    title: "",
+    body: [ node("p", [], [ text("now wrapped") ]) ]
+  });
+
+  const next = rootChildren(env)[0];
+  assert.equal(next.nodeType, 1);
+  assert.equal(next.tagName, "P");
+  assert.notStrictEqual(next, initial);
+});
+
+test("body shrinking to empty removes all children", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ node("p", [], [ text("a") ]), node("p", [], [ text("b") ]) ]
+  });
+  assert.equal(rootChildren(env).length, 2);
+
+  render(env, { title: "", body: [] });
+  assert.equal(rootChildren(env).length, 0);
+});
+
+test("body growing from empty appends the new tree", () => {
+  const env = createEnvironment();
+  render(env, { title: "", body: [] });
+  assert.equal(rootChildren(env).length, 0);
+
+  render(env, {
+    title: "",
+    body: [ node("h1", [], [ text("Hello") ]) ]
+  });
+  assert.equal(rootChildren(env).length, 1);
+  assert.equal(rootChildren(env)[0].tagName, "H1");
+});
+
+test("inserting a child in the middle still produces the right ordering (positional diff is naive)", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ node("ul", [], [
+      node("li", [], [ text("a") ]),
+      node("li", [], [ text("c") ])
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+
+  // Insert "b" between "a" and "c". Without keys, the diff matches by index:
+  // li[0]: a → a (same)
+  // li[1]: c → b (text updated in place)
+  // li[2]: ∅ → c (appended)
+  render(env, {
+    title: "",
+    body: [ node("ul", [], [
+      node("li", [], [ text("a") ]),
+      node("li", [], [ text("b") ]),
+      node("li", [], [ text("c") ])
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 3);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "a");
+  assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "b");
+  assert.equal(ul.childNodes[2].childNodes[0].nodeValue, "c");
+});
+
 test("nested edits preserve identity at every level that doesn't change shape", () => {
   const env = createEnvironment();
   render(env, {

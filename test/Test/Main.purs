@@ -3,6 +3,7 @@ module Test.Main where
 import Prelude
 
 import Data.Array (length, sort)
+import Data.Array as Data.Array
 import Data.Foldable (any, for_)
 import Data.Maybe (Maybe(..))
 import Data.String.Common (joinWith)
@@ -84,6 +85,12 @@ main = do
     , dslOnFocusOnBlurOnDoubleClick
     , dslOnMouseEnterOnMouseLeave
     , dslMultipleEventsOnOneElement
+    ]
+  group "README cookbook recipes compile and produce expected shape"
+    [ cookbookConditionalRender
+    , cookbookListOfItems
+    , cookbookConditionalClassName
+    , cookbookCustomElement
     ]
   Console.log "PureScript framework tests passed"
 
@@ -1383,6 +1390,100 @@ isOnClick :: forall msg. Html.Attribute msg -> Boolean
 isOnClick attr = case attr of
   Html.OnClick _ -> true
   _ -> false
+
+----------------------------------------------------------------------
+-- README cookbook recipes — these tests exist so the snippets in the
+-- HTML DSL cookbook keep compiling. They mirror the patterns shown in
+-- README's "Cookbook" section.
+----------------------------------------------------------------------
+
+-- Conditional render — `catMaybes` pattern.
+cookbookConditionalRender :: Effect Unit
+cookbookConditionalRender = do
+  let
+    page :: Boolean -> Html.Html String
+    page loggedIn =
+      D.div { className: "page" }
+        ( Data.Array.catMaybes
+            [ Just (D.h1 {} [ D.text "Dashboard" ])
+            , if loggedIn
+                then Just (D.button { onClick: "logout" } [ D.text "Sign out" ])
+                else Nothing
+            , Just (D.section {} [ D.text "Content" ])
+            ]
+        )
+
+  assertEqual "logged out — sign-out button omitted"
+    "div[class=page]{h1[]{text(Dashboard)}|section[]{text(Content)}}"
+    (serializeHtml (page false))
+
+  assertEqual "logged in — sign-out button present"
+    "div[class=page]{h1[]{text(Dashboard)}|button[click:\"logout\"]{text(Sign out)}|section[]{text(Content)}}"
+    (serializeHtml (page true))
+
+-- Lists of items — plain `map`.
+cookbookListOfItems :: Effect Unit
+cookbookListOfItems = do
+  let
+    todos = [ "wash car", "buy bread", "read book" ]
+    list :: Html.Html String
+    list =
+      D.ul { className: "stack" }
+        (map (\todo -> D.li { className: "row" } [ D.text todo ]) todos)
+
+  assertEqual "list renders one li per todo"
+    "ul[class=stack]{li[class=row]{text(wash car)}|li[class=row]{text(buy bread)}|li[class=row]{text(read book)}}"
+    (serializeHtml list)
+
+-- Conditional className — the `classes` helper pattern.
+cookbookConditionalClassName :: Effect Unit
+cookbookConditionalClassName = do
+  let
+    classes :: Array (Maybe String) -> String
+    classes parts = joinWith " " (Data.Array.catMaybes parts)
+
+    button :: { primary :: Boolean, disabled :: Boolean } -> Html.Html String
+    button m =
+      D.button
+        { className:
+            classes
+              [ Just "btn"
+              , if m.primary then Just "btn-primary" else Nothing
+              , if m.disabled then Just "opacity-50" else Nothing
+              ]
+        , disabled: m.disabled
+        }
+        [ D.text "Submit" ]
+
+  assertEqual "neutral button class"
+    "button[class=btn]{text(Submit)}"
+    (serializeHtml (button { primary: false, disabled: false }))
+
+  assertEqual "primary disabled — joined class plus disabled attr"
+    "button[class=btn btn-primary opacity-50,disabled=disabled]{text(Submit)}"
+    (serializeHtml (button { primary: true, disabled: true }))
+
+-- Custom elements via D.element / D.voidElement.
+cookbookCustomElement :: Effect Unit
+cookbookCustomElement = do
+  let
+    widget :: Html.Html String
+    widget =
+      D.element "my-counter"
+        { className: "live" }
+        [ D.text "8" ]
+
+  assertEqual "custom element tag passes through"
+    "my-counter[class=live]{text(8)}"
+    (serializeHtml widget)
+
+  let
+    spinner :: Html.Html String
+    spinner = D.voidElement "my-spinner" { className: "loading" }
+
+  assertEqual "custom void element has no children"
+    "my-spinner[class=loading]{}"
+    (serializeHtml spinner)
 
 dslIntegerAndStringOverloadsCoexist :: Effect Unit
 dslIntegerAndStringOverloadsCoexist = do
