@@ -13,6 +13,7 @@ package:
     - prelude: ">=6.0.1 <7.0.0"
     - refs: ">=6.0.0 <7.0.0"
     - strings: ">=6.0.1 <7.0.0"
+    - type-equality: ">=4.0.1 <5.0.0"
   test:
     main: Test.Main
     dependencies:
