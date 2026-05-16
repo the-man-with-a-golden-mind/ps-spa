@@ -29,6 +29,11 @@ function OnClick(value0) {
   this.value0 = value0;
 }
 
+function OnEvent(value0, value1) {
+  this.value0 = value0;
+  this.value1 = value1;
+}
+
 function text(value) {
   return new Text(value);
 }
@@ -41,6 +46,10 @@ function onClick(handler) {
   return new OnClick(handler);
 }
 
+function onEvent(name, handler) {
+  return new OnEvent(name, handler);
+}
+
 function node(tag, attrs, children) {
   return new Element(tag, attrs, children);
 }
@@ -49,24 +58,63 @@ class FakeTextNode {
   constructor(value) {
     this.nodeType = 3;
     this.parentNode = null;
-    this.textContent = value;
+    this.nodeValue = value;
+  }
+
+  get textContent() {
+    return this.nodeValue;
+  }
+
+  set textContent(value) {
+    this.nodeValue = value;
   }
 }
 
 class FakeElement {
   constructor(tagName, ownerDocument) {
     this.attributes = {};
-    this.children = [];
+    this.childNodes = [];
     this.listeners = new Map();
     this.ownerDocument = ownerDocument;
     this.parentNode = null;
     this.tagName = tagName.toUpperCase();
+    this.nodeType = 1;
+    this.nodeName = tagName.toUpperCase();
+  }
+
+  get children() {
+    return this.childNodes.filter((node) => node.nodeType === 1);
   }
 
   appendChild(child) {
+    if (child.parentNode) {
+      child.parentNode.removeChild(child);
+    }
     child.parentNode = this;
-    this.children.push(child);
+    this.childNodes.push(child);
     return child;
+  }
+
+  removeChild(child) {
+    const index = this.childNodes.indexOf(child);
+    if (index !== -1) {
+      this.childNodes.splice(index, 1);
+      child.parentNode = null;
+    }
+    return child;
+  }
+
+  replaceChild(newChild, oldChild) {
+    const index = this.childNodes.indexOf(oldChild);
+    if (index !== -1) {
+      if (newChild.parentNode) {
+        newChild.parentNode.removeChild(newChild);
+      }
+      this.childNodes[index] = newChild;
+      newChild.parentNode = this;
+      oldChild.parentNode = null;
+    }
+    return oldChild;
   }
 
   addEventListener(type, listener) {
@@ -94,8 +142,12 @@ class FakeElement {
     return this.attributes[name] ?? null;
   }
 
+  removeAttribute(name) {
+    delete this.attributes[name];
+  }
+
   set innerHTML(_value) {
-    this.children = [];
+    this.childNodes = [];
   }
 
   get innerHTML() {
@@ -192,6 +244,8 @@ class FakeWindow {
   }
 }
 
+export { Text, Element, Attribute, OnClick, OnEvent, text, attr, onClick, onEvent, node };
+
 function loadBrowserModule(document, window) {
   const module = { exports: {} };
   const context = vm.createContext({
@@ -205,7 +259,7 @@ function loadBrowserModule(document, window) {
   return module.exports;
 }
 
-function createEnvironment(rootId = "app") {
+export function createEnvironment(rootId = "app") {
   const document = new FakeDocument(rootId);
   const window = new FakeWindow();
   return {

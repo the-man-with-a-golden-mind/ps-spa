@@ -244,6 +244,187 @@ H.div [ H.attr "data-custom" "anything", H.onClick Submit ]
 
 `Generated.Link` reflects the same split: `Link.link Index { className: "back" }` for the new style, `Link.linkAttrs Index [H.className "back"]` for the legacy one.
 
+### Field → HTML attribute mapping
+
+PureScript record fields can't be reserved keywords (`class`, `type`, `for`, `data`) and follow PS naming (camelCase), so some fields are renamed before reaching the DOM. Most renames just swap camelCase to kebab-case; a few are full keyword escapes:
+
+| Record field          | HTML attribute        | Type     | Notes                              |
+| --------------------- | --------------------- | -------- | ---------------------------------- |
+| `className`           | `class`               | String   | `class` is reserved                |
+| `htmlFor`             | `for`                 | String   | `for` is reserved                  |
+| `type_`               | `type`                | String   | `type` is reserved                 |
+| `data_` (element)     | `<data>`              | —        | `data` is reserved                 |
+| `head_` (element)     | `<head>`              | —        | shadows Prelude.head               |
+| `map_` (element)      | `<map>`               | —        | clarity                            |
+| `encType`             | `enctype`             | String   |                                    |
+| `acceptCharset`       | `accept-charset`      | String   |                                    |
+| `hrefLang`            | `hreflang`            | String   |                                    |
+| `referrerPolicy`      | `referrerpolicy`      | String   |                                    |
+| `srcSet`              | `srcset`              | String   |                                    |
+| `srcLang`             | `srclang`             | String   |                                    |
+| `crossOrigin`         | `crossorigin`         | String   |                                    |
+| `httpEquiv`           | `http-equiv`          | String   |                                    |
+| `tabIndex`            | `tabindex`            | Int/Str  | overloaded                         |
+| `colSpan` / `rowSpan` | `colspan` / `rowspan` | Int      |                                    |
+| `spanCount`           | `span`                | Int      | `<col span="">`; avoids name clash |
+| `maxLength`           | `maxlength`           | Int      |                                    |
+| `minLength`           | `minlength`           | Int      |                                    |
+| `readOnly`            | `readonly`            | Boolean  | omitted when false                 |
+| `autoFocus`           | `autofocus`           | Boolean  | omitted when false                 |
+| `autoComplete`        | `autocomplete`        | String   |                                    |
+| `autoCapitalize`      | `autocapitalize`      | String   |                                    |
+| `noValidate`          | `novalidate`          | Boolean  | omitted when false                 |
+| `formNoValidate`      | `formnovalidate`      | Boolean  |                                    |
+| `formAction`          | `formaction`          | String   |                                    |
+| `formMethod`          | `formmethod`          | String   |                                    |
+| `formEncType`         | `formenctype`         | String   |                                    |
+| `formTarget`          | `formtarget`          | String   |                                    |
+| `inputMode`           | `inputmode`           | String   |                                    |
+| `autoPlay`            | `autoplay`            | Boolean  | omitted when false                 |
+| `playsInline`         | `playsinline`         | Boolean  | omitted when false                 |
+| `isMap`               | `ismap`               | Boolean  | omitted when false                 |
+| `contentEditable`     | `contenteditable`     | Boolean  | always emits ("true" / "false")    |
+| `spellCheck`          | `spellcheck`          | Boolean  | always emits ("true" / "false")    |
+| `accessKey`           | `accesskey`           | String   |                                    |
+| `enterKeyHint`        | `enterkeyhint`        | String   |                                    |
+| `itemScope`           | `itemscope`           | Boolean  | omitted when false                 |
+| `itemProp` / `itemId` / `itemRef` / `itemType` | `itemprop` / `itemid` / `itemref` / `itemtype` | String | microdata |
+| `ariaLabel`, `ariaLabelledBy`, … | `aria-label`, `aria-labelledby`, … | String/Bool/Int | full ARIA 1.2 set (see [`PsSpa.Html.DSL`](src/PsSpa/Html/DSL.purs)) |
+| `dataAttrs`           | many `data-*`         | `Array KeyValue` | expands; one entry per attribute |
+| `ariaAttrs`           | many `aria-*`         | `Array KeyValue` | expands                            |
+| `onClick`             | (event listener)      | `msg`    | dispatches msg on click            |
+| `onInput` / `onChange` / `onKeyDown` / `onKeyUp` | (event listener) | `String -> msg` | carries target.value or key.name |
+| `onSubmit` / `onFocus` / `onBlur` / `onDoubleClick` / `onMouseEnter` / `onMouseLeave` | (event listener) | `msg` | |
+
+**Two rules for boolean attributes:**
+
+- Most HTML booleans (`disabled`, `checked`, `required`, …) **omit** when `false`. Pass `true` to emit `<button disabled="disabled">`; pass `false` to render nothing.
+- ARIA booleans (`ariaHidden`, `ariaExpanded`, `ariaSelected`, `ariaPressed`, `ariaDisabled`, `ariaBusy`, `ariaModal`, `ariaMultiLine`, `ariaMultiSelectable`, `ariaReadOnly`, `ariaRequired`, `ariaAtomic`) plus `contentEditable`, `spellCheck`, `draggable` **always emit** with literal `"true"` or `"false"` — that's the spec.
+
+### Custom elements (web components)
+
+For tags the DSL doesn't ship — e.g. `<my-counter>` — use the escape hatches:
+
+```purescript
+D.element "my-counter" { className: "live" } [ D.text "8" ]
+D.voidElement "my-spinner" {}
+```
+
+### Custom events
+
+Need an event the DSL doesn't expose (`scroll`, `wheel`, `pointerdown`, `dragover`, `touchstart`, `copy`, …)? Drop down to the array-style API:
+
+```purescript
+import PsSpa.Html as H
+import PsSpa.Html (onEvent)
+import PsSpa.Event (preventDefault, targetValue)
+
+H.div
+  [ H.className "drop"
+  , onEvent "dragover" (\e -> DragOver e)
+  , onEvent "drop" (\e -> Dropped (targetValue e))
+  ]
+  [ ... ]
+```
+
+Both styles produce the same `Html` ADT, so they can sit inside each other.
+
+### Cookbook
+
+**Conditional rendering** — use a helper that returns `Maybe (Html msg)` and flatten with `Data.Array.catMaybes`, or just a plain `if`:
+
+```purescript
+import Data.Array (catMaybes)
+import Data.Maybe (Maybe(..))
+
+view model =
+  D.div { className: "page" }
+    (catMaybes
+      [ Just (D.h1 {} [ D.text "Dashboard" ])
+      , if model.loggedIn
+          then Just (D.button { onClick: Logout } [ D.text "Sign out" ])
+          else Nothing
+      , Just (D.section {} [ D.text "Content" ])
+      ])
+```
+
+**Lists of items** — plain `map`:
+
+```purescript
+D.ul { className: "stack" }
+  (map (\todo -> D.li { className: "row" } [ D.text todo.label ]) model.todos)
+```
+
+**Conditional className with multiple flags** — `Data.String.Common.joinWith`:
+
+```purescript
+import Data.Array (catMaybes)
+import Data.String.Common (joinWith)
+import Data.Maybe (Maybe(..))
+
+classes :: Array (Maybe String) -> String
+classes parts = joinWith " " (catMaybes parts)
+
+D.button
+  { className:
+      classes
+        [ Just "btn"
+        , if model.primary then Just "btn-primary" else Nothing
+        , if model.disabled then Just "opacity-50" else Nothing
+        ]
+  , disabled: model.disabled
+  }
+  [ D.text "Submit" ]
+```
+
+**Submit a form without page reload** — let the runtime stop the default action via `preventDefault` inside the handler. With `onSubmit` from the DSL this is automatic — the synthetic event is dispatched, but `<form>` still submits unless you intercept it via the array API:
+
+```purescript
+import PsSpa.Html as H
+import PsSpa.Html (onEvent)
+import PsSpa.Event (preventDefault)
+import Effect (Effect)
+
+submitFx :: forall msg. msg -> Effect Unit
+submitFx = const (pure unit)  -- pretend dispatcher; in real code use page's dispatch
+
+H.form
+  [ onEvent "submit" \event -> do
+      preventDefault event
+      pure SaveForm
+  ]
+  [ … ]
+```
+
+For a simpler version: pair `D.form { onSubmit: SaveForm }` with `<button type_="button">` instead of `type_="submit"` so the browser doesn't try to submit.
+
+**Focus an input on mount** — declare a `Command` that runs the actual focus call via FFI:
+
+```purescript
+data Command = FocusInput String   -- elementId
+
+init = { model: { … }, effect: [ FocusInput "search" ] }
+
+-- in Main.purs onCommand:
+onCommand cmd = case cmd of
+  FocusInput id -> focusById id   -- FFI to document.getElementById(id).focus()
+```
+
+See [examples/basic/src/Pages/EffectsAndSubscriptions.purs](examples/basic/src/Pages/EffectsAndSubscriptions.purs) for a runnable end-to-end example with commands + subscriptions.
+
+### What the DSL is *not*
+
+So you know what you're trading off:
+
+- **No virtual DOM diffing.** Until v0.5.x the renderer rebuilt the DOM tree on every state change; v0.5.2+ does positional diffing in place (preserves focus, faster on equal-shape rerenders) but still doesn't do keyed reordering. For lists where rows move around (drag-and-drop sort, virtualisation), you'll see flicker / lost focus.
+- **No keyed lists.** Children are matched by index. Reordering = full reset of element identity. If you need stable identity, use record fields like `id` to detect the change yourself.
+- **No SSR.** The renderer only knows how to call `document.createElement`. Server-side rendering to a string is not supported.
+- **No ref callbacks.** You cannot get a handle to the underlying DOM element from inside the DSL. Reach for `Command`s and FFI for things like "focus this input after mount".
+- **No `dangerouslySetInnerHTML`.** All text goes through `createTextNode`, so it's always escaped. Rendering markdown output requires using FFI to set `innerHTML` on a wrapper element via a custom Command.
+- **No type-level "this attr belongs on this element".** `D.div { onSubmit: Foo }` compiles. TypeScript/JSX catches this; we don't.
+- **No CSS-in-JS / style objects.** `style :: String` only — you write the literal CSS string.
+- **SVG and MathML elements exist (`D.svg`, `D.math`), but the renderer uses `createElement`, not `createElementNS`.** They land in the tree, but won't render as graphics in the browser. Workaround: render SVG via `dangerouslySetInnerHTML`-style FFI for now.
+
 ### Deep coverage tests
 
 The DSL is covered by deep PureScript tests in [test/Test/Main.purs](test/Test/Main.purs): every element function, every attribute name mapping (`className → class`, `htmlFor → for`, `encType → enctype`, `httpEquiv → http-equiv`, `srcSet → srcset`, ...), boolean true/false behaviour, ARIA-bool always-emit semantics, integer/string overloads, event handler routing, generic data/aria expansion, and deep nesting with custom Msg types. Run them with `npm run test:ps`.
