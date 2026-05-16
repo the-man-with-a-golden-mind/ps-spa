@@ -1,16 +1,15 @@
 // PureScript ADT constructors compile to objects with stable `valueN` fields
 // (part of the compiler's ABI). We dispatch on field presence rather than
-// `constructor.name` so this code survives bundling/minification — name-based
-// dispatch breaks the moment esbuild or any other bundler renames the inner
-// constructor functions.
+// `constructor.name` so this code survives bundling/minification.
 //
 //   Html msg
 //     = Text String                                          → { value0 }
 //     | Element String (Array (Attribute msg)) (Array Html)  → { value0, value1, value2 }
 //
 //   Attribute msg
-//     = Attribute String String     → { value0, value1 }
-//     | OnClick msg                 → { value0 }
+//     = Attribute String String                  → { value0: str, value1: str }
+//     | OnClick (Effect Unit)                    → { value0: function }
+//     | OnEvent String (Event -> Effect Unit)    → { value0: str, value1: function }
 
 function isObject(value) {
   return value !== null && typeof value === "object";
@@ -50,13 +49,22 @@ function applyAttribute(element, attr) {
   if (!isObject(attr)) return;
 
   if ("value1" in attr) {
+    if (typeof attr.value1 === "function") {
+      // OnEvent name handler (handler returns an Effect to dispatch the msg).
+      var handler = attr.value1;
+      element.addEventListener(attr.value0, function (event) {
+        handler(event)();
+      });
+      return;
+    }
     // Attribute name value
     element.setAttribute(attr.value0, attr.value1);
     return;
   }
 
   if ("value0" in attr) {
-    // OnClick message
+    // OnClick — value0 is a `Effect Unit` thunk after the runtime mapped
+    // `OnClick msg → OnClick (Effect Unit)`.
     var message = attr.value0;
     element.addEventListener("click", function (event) {
       event.preventDefault();

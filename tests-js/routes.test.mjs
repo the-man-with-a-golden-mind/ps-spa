@@ -151,8 +151,12 @@ test("generateLinkModule exposes typed route links", () => {
   const source = generateLinkModule();
 
   assert.match(source, /module Generated\.Link/);
-  assert.match(source, /href :: forall msg\. Route -> Html\.Attribute msg/);
-  assert.match(source, /link :: forall msg\. Route -> Array/);
+  assert.match(source, /href :: forall msg\. Route -> Attribute msg/);
+  // DSL record-style link
+  assert.match(source, /DSL\.FromAttrs rl r msg/);
+  assert.match(source, /Route\n {2,}-> Record r/);
+  // Legacy array-style link
+  assert.match(source, /linkAttrs\n {2}:: forall msg/);
   assert.match(source, /Html\.a \(\[ href route \] <> attrs\) children/);
 });
 

@@ -46,7 +46,7 @@ view =
                   , H.p
                       [ H.className "mt-2 text-sm text-slate-600" ]
                       [ H.text "Local counter updates on the page without navigation." ]
-                  , Link.link
+                  , Link.linkAttrs
                       Playground
                       [ H.className "mt-4 inline-flex rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white" ]
                       [ H.text "Open playground" ]
@@ -59,7 +59,7 @@ view =
                   , H.p
                       [ H.className "mt-2 text-sm text-slate-600" ]
                       [ H.text "This route is generated from Pages.People.NameParam and receives a path param." ]
-                  , Link.link
+                  , Link.linkAttrs
                       (PeopleNameParam { name: "michal" })
                       [ H.className "mt-4 inline-flex rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" ]
                       [ H.text "Open /people/michal" ]
@@ -72,7 +72,7 @@ view =
                   , H.p
                       [ H.className "mt-2 text-sm text-slate-600" ]
                       [ H.text "Custom command handling and custom subscriptions wired through Generated.App.startWith." ]
-                  , Link.link
+                  , Link.linkAttrs
                       EffectsAndSubscriptions
                       [ H.className "mt-4 inline-flex rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950" ]
                       [ H.text "Open runtime example" ]
@@ -85,7 +85,7 @@ view =
                   , H.p
                       [ H.className "mt-2 text-sm text-slate-600" ]
                       [ H.text "The generated NotFound page is also routed inside the SPA runtime." ]
-                  , Link.link
+                  , Link.linkAttrs
                       NotFound
                       [ H.className "mt-4 inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800" ]
                       [ H.text "Open not-found" ]

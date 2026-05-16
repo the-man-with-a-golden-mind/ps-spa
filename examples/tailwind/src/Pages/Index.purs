@@ -49,7 +49,7 @@ view =
                   , H.p
                       [ H.className "mt-3 text-sm text-slate-600" ]
                       [ H.text "This route was created from the tailwind page template and should feel like a proper landing page, not a stub." ]
-                  , Link.link
+                  , Link.linkAttrs
                       MarketingHero
                       [ H.className "mt-5 inline-flex rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white" ]
                       [ H.text "Open /marketing/hero" ]
@@ -65,7 +65,7 @@ view =
                   , H.p
                       [ H.className "mt-3 text-sm text-slate-200" ]
                       [ H.text "This route proves dynamic path matching and element-page updates inside the same app shell." ]
-                  , Link.link
+                  , Link.linkAttrs
                       (GuidesSlugParam { slug: "routing" })
                       [ H.className "mt-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950" ]
                       [ H.text "Open /guides/routing" ]

@@ -36,7 +36,7 @@ view =
           , H.p
               [ H.className "text-lg text-slate-600" ]
               [ H.text "Generated tailwind page for route /marketing/hero." ]
-          , Link.link
+          , Link.linkAttrs
               Index
               [ H.className "w-fit rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800" ]
               [ H.text "Back home" ]

@@ -93,11 +93,11 @@ view request model =
               , H.onClick Triggered
               ]
               [ H.text "Run advanced update" ]
-          , Link.link
+          , Link.linkAttrs
               Index
               [ H.className "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" ]
               [ H.text "Back home" ]
-          , Link.link
+          , Link.linkAttrs
               (PeopleNameParam { name: "alex" })
               [ H.className "w-fit text-sm font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-4" ]
               [ H.text "Jump to /people/alex" ]

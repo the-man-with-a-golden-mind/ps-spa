@@ -18,13 +18,13 @@ function staticTemplate(route, templateKind = "Static", extraBody = "") {
   const title = titleFromRoute(route);
   const backHomeLink =
     route === "/"
-      ? `          , H.p
-              [ H.className "text-sm text-slate-500" ]
-              [ H.text "Add more pages with ps-spa add, then link them from this home page." ]`
+      ? `          , D.p
+              { className: "text-sm text-slate-500" }
+              [ D.text "Add more pages with ps-spa add, then link them from this home page." ]`
       : `          , Link.link
               Index
-              [ H.className "w-fit rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800" ]
-              [ H.text "Back home" ]`;
+              { className: "w-fit rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800" }
+              [ D.text "Back home" ]`;
 
   return `module ${moduleNameForRoute(route)}
   ( hasSubscriptions
@@ -38,7 +38,7 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Generated.Link as Link
 import Generated.Route (Request, Route(..))
-import PsSpa.Html as H
+import PsSpa.Html.DSL as D
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind(..))
 import PsSpa.View (Document)
@@ -56,14 +56,14 @@ view :: Document Void
 view =
   { title: "${escapeText(title)}"
   , body:
-      [ H.main
-          [ H.className "${PAGE_SHELL_CLASS}" ]
-          [ H.h1
-              [ H.className "text-4xl font-bold tracking-tight text-slate-950" ]
-              [ H.text "${escapeText(title)}" ]
-          , H.p
-              [ H.className "text-lg text-slate-600" ]
-              [ H.text "Generated ${templateKind.toLowerCase()} page for route ${route}." ]
+      [ D.main
+          { className: "${PAGE_SHELL_CLASS}" }
+          [ D.h1
+              { className: "text-4xl font-bold tracking-tight text-slate-950" }
+              [ D.text "${escapeText(title)}" ]
+          , D.p
+              { className: "text-lg text-slate-600" }
+              [ D.text "Generated ${templateKind.toLowerCase()} page for route ${route}." ]
 ${backHomeLink}
           ${extraBody}
           ]
@@ -98,7 +98,7 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Generated.Link as Link
 import Generated.Route (Request, Route(..))
-import PsSpa.Html as H
+import PsSpa.Html.DSL as D
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind(..))
 import PsSpa.View (Document)
@@ -141,34 +141,34 @@ view :: Model -> Document Msg
 view model =
   { title: "${escapeText(title)}"
   , body:
-      [ H.main
-          [ H.className "${PAGE_SHELL_CLASS}" ]
-          [ H.h1
-              [ H.className "text-4xl font-bold tracking-tight text-slate-950" ]
-              [ H.text "${escapeText(title)}" ]
-          , H.p
-              [ H.className "text-lg text-slate-600" ]
-              [ H.text "Sandbox page with local state." ]
-          , H.div
-              [ H.className "flex items-center gap-3" ]
-              [ H.button
-                  [ H.className "rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800"
-                  , H.onClick Decrement
-                  ]
-                  [ H.text "-" ]
-              , H.p
-                  [ H.className "min-w-12 text-center text-2xl font-semibold text-slate-950" ]
-                  [ H.text (show model.counter) ]
-              , H.button
-                  [ H.className "rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800"
-                  , H.onClick Increment
-                  ]
-                  [ H.text "+" ]
+      [ D.main
+          { className: "${PAGE_SHELL_CLASS}" }
+          [ D.h1
+              { className: "text-4xl font-bold tracking-tight text-slate-950" }
+              [ D.text "${escapeText(title)}" ]
+          , D.p
+              { className: "text-lg text-slate-600" }
+              [ D.text "Sandbox page with local state." ]
+          , D.div
+              { className: "flex items-center gap-3" }
+              [ D.button
+                  { className: "rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800"
+                  , onClick: Decrement
+                  }
+                  [ D.text "-" ]
+              , D.p
+                  { className: "min-w-12 text-center text-2xl font-semibold text-slate-950" }
+                  [ D.text (show model.counter) ]
+              , D.button
+                  { className: "rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800"
+                  , onClick: Increment
+                  }
+                  [ D.text "+" ]
               ]
           , Link.link
               Index
-              [ H.className "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" ]
-              [ H.text "Back home" ]
+              { className: "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" }
+              [ D.text "Back home" ]
           ]
       ]
   }
@@ -202,7 +202,7 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Generated.Link as Link
 import Generated.Route (Request, Route(..))
-import PsSpa.Html as H
+import PsSpa.Html.DSL as D
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind(..))
 import PsSpa.View (Document)
@@ -253,26 +253,26 @@ view :: Model -> Document Msg
 view model =
   { title: "${escapeText(title)}"
   , body:
-      [ H.main
-          [ H.className "${PAGE_SHELL_CLASS}" ]
-          [ H.h1
-              [ H.className "text-4xl font-bold tracking-tight text-slate-950" ]
-              [ H.text "${escapeText(title)}" ]
-          , H.p
-              [ H.className "text-lg text-slate-600" ]
-              [ H.text "Element page with command and subscription hooks." ]
-          , H.p
-              [ H.className "rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700" ]
-              [ H.text ("Current status: " <> model.status) ]
-          , H.button
-              [ H.className "w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-              , H.onClick Triggered
-              ]
-              [ H.text "Trigger update" ]
+      [ D.main
+          { className: "${PAGE_SHELL_CLASS}" }
+          [ D.h1
+              { className: "text-4xl font-bold tracking-tight text-slate-950" }
+              [ D.text "${escapeText(title)}" ]
+          , D.p
+              { className: "text-lg text-slate-600" }
+              [ D.text "Element page with command and subscription hooks." ]
+          , D.p
+              { className: "rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700" }
+              [ D.text ("Current status: " <> model.status) ]
+          , D.button
+              { className: "w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+              , onClick: Triggered
+              }
+              [ D.text "Trigger update" ]
           , Link.link
               Index
-              [ H.className "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" ]
-              [ H.text "Back home" ]
+              { className: "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" }
+              [ D.text "Back home" ]
           ]
       ]
   }
@@ -307,7 +307,7 @@ import Data.Maybe (Maybe(..))
 import Generated.Link as Link
 import Generated.Route (Request, Route(..))
 import PsSpa.Effect as Effect
-import PsSpa.Html as H
+import PsSpa.Html.DSL as D
 import PsSpa.Page as Page
 import PsSpa.PageKind (PageKind(..))
 import PsSpa.View (Document)
@@ -358,26 +358,26 @@ view :: Model -> Document Msg
 view model =
   { title: "${escapeText(title)}"
   , body:
-      [ H.main
-          [ H.className "${PAGE_SHELL_CLASS}" ]
-          [ H.h1
-              [ H.className "text-4xl font-bold tracking-tight text-slate-950" ]
-              [ H.text "${escapeText(title)}" ]
-          , H.p
-              [ H.className "text-lg text-slate-600" ]
-              [ H.text "Advanced page with shared effects, navigation hooks, and subscriptions." ]
-          , H.p
-              [ H.className "rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800" ]
-              [ H.text ("Current status: " <> model.status) ]
-          , H.button
-              [ H.className "w-fit rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white"
-              , H.onClick Triggered
-              ]
-              [ H.text "Run advanced update" ]
+      [ D.main
+          { className: "${PAGE_SHELL_CLASS}" }
+          [ D.h1
+              { className: "text-4xl font-bold tracking-tight text-slate-950" }
+              [ D.text "${escapeText(title)}" ]
+          , D.p
+              { className: "text-lg text-slate-600" }
+              [ D.text "Advanced page with shared effects, navigation hooks, and subscriptions." ]
+          , D.p
+              { className: "rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800" }
+              [ D.text ("Current status: " <> model.status) ]
+          , D.button
+              { className: "w-fit rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white"
+              , onClick: Triggered
+              }
+              [ D.text "Run advanced update" ]
           , Link.link
               Index
-              [ H.className "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" ]
-              [ H.text "Back home" ]
+              { className: "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" }
+              [ D.text "Back home" ]
           ]
       ]
   }
@@ -394,28 +394,28 @@ function tailwindTemplate(route) {
   return staticTemplate(
     route,
     "Tailwind",
-    `, H.section
-              [ H.className "grid gap-4 md:grid-cols-2" ]
-              [ H.div
-                  [ H.className "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" ]
-                  [ H.p
-                      [ H.className "text-sm font-semibold uppercase tracking-[0.2em] text-sky-600" ]
-                      [ H.text "Tailwind ready" ]
-                  , H.h1
-                      [ H.className "mt-3 text-3xl font-bold tracking-tight text-slate-950" ]
-                      [ H.text "A stronger starter than a placeholder." ]
-                  , H.p
-                      [ H.className "mt-3 text-base text-slate-600" ]
-                      [ H.text "This template scaffolds Tailwind config files and gives the page a real visual starting point." ]
+    `, D.section
+              { className: "grid gap-4 md:grid-cols-2" }
+              [ D.div
+                  { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" }
+                  [ D.p
+                      { className: "text-sm font-semibold uppercase tracking-[0.2em] text-sky-600" }
+                      [ D.text "Tailwind ready" ]
+                  , D.h1
+                      { className: "mt-3 text-3xl font-bold tracking-tight text-slate-950" }
+                      [ D.text "A stronger starter than a placeholder." ]
+                  , D.p
+                      { className: "mt-3 text-base text-slate-600" }
+                      [ D.text "This template scaffolds Tailwind config files and gives the page a real visual starting point." ]
                   ]
-              , H.div
-                  [ H.className "rounded-3xl bg-slate-950 p-6 text-white" ]
-                  [ H.p
-                      [ H.className "text-sm font-semibold uppercase tracking-[0.2em] text-sky-300" ]
-                      [ H.text "Next steps" ]
-                  , H.p
-                      [ H.className "mt-3 text-base text-slate-200" ]
-                      [ H.text "Run npm install or bun install, then start the app with npm run dev or bun run dev." ]
+              , D.div
+                  { className: "rounded-3xl bg-slate-950 p-6 text-white" }
+                  [ D.p
+                      { className: "text-sm font-semibold uppercase tracking-[0.2em] text-sky-300" }
+                      [ D.text "Next steps" ]
+                  , D.p
+                      { className: "mt-3 text-base text-slate-200" }
+                      [ D.text "Run npm install or bun install, then start the app with npm run dev or bun run dev." ]
                   ]
               ]`
   );

@@ -82,7 +82,7 @@ view model =
                   ]
                   [ H.text "+" ]
               ]
-          , Link.link
+          , Link.linkAttrs
               Index
               [ H.className "w-fit text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" ]
               [ H.text "Back home" ]

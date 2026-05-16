@@ -33,7 +33,18 @@ module PsSpa.Html
   , main_
   , nav
   , node
+  , onBlur
+  , onChange
   , onClick
+  , onDoubleClick
+  , onEvent
+  , onFocus
+  , onInput
+  , onKeyDown
+  , onKeyUp
+  , onMouseEnter
+  , onMouseLeave
+  , onSubmit
   , p
   , p_
   , rel
@@ -53,12 +64,23 @@ module PsSpa.Html
 
 import Prelude hiding (div)
 import Data.String.Common (joinWith)
+import PsSpa.Event (EventValue, keyName, targetValue)
 
 data Attribute msg
   = Attribute String String
   | OnClick msg
+  | OnEvent String (EventValue -> msg)
 
-derive instance functorAttribute :: Functor Attribute
+instance functorAttribute :: Functor Attribute where
+  map lift attribute = case attribute of
+    Attribute key value ->
+      Attribute key value
+
+    OnClick message ->
+      OnClick (lift message)
+
+    OnEvent name handler ->
+      OnEvent name (\event -> lift (handler event))
 
 data ButtonType
   = ButtonButton
@@ -200,6 +222,41 @@ src = Attribute "src"
 
 onClick :: forall msg. msg -> Attribute msg
 onClick = OnClick
+
+-- | Generic event handler. Use the more specific helpers below where they
+-- | exist; reach for `onEvent` only when adding a handler we don't ship.
+onEvent :: forall msg. String -> (EventValue -> msg) -> Attribute msg
+onEvent = OnEvent
+
+onInput :: forall msg. (String -> msg) -> Attribute msg
+onInput build = OnEvent "input" (\event -> build (targetValue event))
+
+onChange :: forall msg. (String -> msg) -> Attribute msg
+onChange build = OnEvent "change" (\event -> build (targetValue event))
+
+onSubmit :: forall msg. msg -> Attribute msg
+onSubmit message = OnEvent "submit" (\_ -> message)
+
+onKeyDown :: forall msg. (String -> msg) -> Attribute msg
+onKeyDown build = OnEvent "keydown" (\event -> build (keyName event))
+
+onKeyUp :: forall msg. (String -> msg) -> Attribute msg
+onKeyUp build = OnEvent "keyup" (\event -> build (keyName event))
+
+onFocus :: forall msg. msg -> Attribute msg
+onFocus message = OnEvent "focus" (\_ -> message)
+
+onBlur :: forall msg. msg -> Attribute msg
+onBlur message = OnEvent "blur" (\_ -> message)
+
+onMouseEnter :: forall msg. msg -> Attribute msg
+onMouseEnter message = OnEvent "mouseenter" (\_ -> message)
+
+onMouseLeave :: forall msg. msg -> Attribute msg
+onMouseLeave message = OnEvent "mouseleave" (\_ -> message)
+
+onDoubleClick :: forall msg. msg -> Attribute msg
+onDoubleClick message = OnEvent "dblclick" (\_ -> message)
 
 buttonType :: forall msg. ButtonType -> Attribute msg
 buttonType kind =

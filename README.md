@@ -113,8 +113,10 @@ Because PureScript does not allow Elm-style trailing underscore module names, th
 
 Running `node scripts/ps-spa.mjs --root examples/basic add /route tailwind` does two things:
 
-- generates a Tailwind-styled page module
-- scaffolds `tailwind.config.cjs`, `postcss.config.cjs`, `styles/tailwind.css`, `public/.gitkeep`, and package dependencies on demand
+- generates a Tailwind-styled page module (using the [HTML DSL](#html-dsl) below)
+- scaffolds `styles/tailwind.css` (with the `@import "tailwindcss"` directive), patches `vite.config.mjs` to register the `@tailwindcss/vite` plugin, and adds `tailwindcss` + `@tailwindcss/vite` to devDependencies
+
+This is Tailwind v4 — there is no `tailwind.config.cjs` / `postcss.config.cjs`; the Vite plugin handles everything.
 
 Generated apps also get a local `package.json`, so the normal way to run them is from inside that app directory:
 
@@ -166,15 +168,82 @@ See [docs/publishing.md](docs/publishing.md).
 
 ## HTML DSL
 
-The HTML layer is now meant to feel closer to JSX than to low-level constructors. Instead of `Html.main_` and `Html.class_`, pages can use the shorter style from [src/PsSpa/Html.purs](src/PsSpa/Html.purs):
+ps-spa ships two layers for building views; new code should reach for the **record-based DSL** in [src/PsSpa/Html/DSL.purs](src/PsSpa/Html/DSL.purs), which is the style every scaffold template now emits.
+
+```purescript
+import PsSpa.Html.DSL as D
+
+view =
+  D.main { className: "mx-auto max-w-3xl px-6 py-16" }
+    [ D.h1 { className: "text-4xl font-bold" }
+        [ D.text "Hello" ]
+    , D.p { className: "text-lg text-slate-600" }
+        [ D.text "Record attrs, type-safe, plays nice with the rest of PureScript." ]
+    , D.button
+        { className: "rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+        , onClick: Submit
+        , disabled: false
+        }
+        [ D.text "Click me" ]
+    ]
+```
+
+### What's covered
+
+- **Every standard HTML5 element** — 90 container elements (`a`, `audio`, `blockquote`, `details`, `div`, `dialog`, `figure`, `form`, `header`, `iframe`, `main`, `math`, `nav`, `picture`, `progress`, `section`, `svg`, `table`, `template`, `video`, ...) and 13 void elements (`area`, `base`, `br`, `col`, `embed`, `hr`, `img`, `input`, `link`, `meta`, `source`, `track`, `wbr`). The few PureScript keywords are escaped: `data_`, `head_`, `map_`.
+- **Most HTML attributes** — `className`, `id`, `href`, `src`, `srcSet`, `sizes`, `alt`, `type_`, `value`, `placeholder`, `htmlFor`, `encType`, `httpEquiv`, `action`, `method`, `accept`, `acceptCharset`, `inputMode`, `pattern`, `formAction`, `formMethod`, `colSpan`, `rowSpan`, `tabIndex`, `width`, `height`, `min`, `max`, `step`, `maxLength`, `minLength`, … each backed by a typeclass instance that maps the record field to the canonical HTML attribute name.
+- **Boolean attributes** — `disabled`, `checked`, `readOnly`, `required`, `autoFocus`, `hidden`, `open`, `controls`, `autoPlay`, `loop`, `muted`, `playsInline`, `async`, `defer`, `multiple`, `noValidate`, `formNoValidate`, `inert`, … pass `true` to emit, `false` to omit.
+- **Full ARIA 1.2** — `role`, `ariaLabel`, `ariaLabelledBy`, `ariaDescribedBy`, `ariaControls`, `ariaCurrent`, `ariaLive`, `ariaHidden`, `ariaExpanded`, `ariaSelected`, `ariaPressed`, `ariaDisabled`, `ariaBusy`, `ariaModal`, `ariaInvalid`, `ariaHasPopup`, `ariaLevel`, `ariaSetSize`, `ariaPosInSet`, `ariaValueMin/Max/Now/Text`, `ariaRowCount/Index/Span`, `ariaColCount/Index/Span`, … (string, boolean, and integer flavours).
+- **Microdata** — `itemProp`, `itemId`, `itemRef`, `itemType`, `itemScope`.
+- **Generic `data-*` and `aria-*`** for the long tail:
+
+  ```purescript
+  D.div
+    { className: "panel"
+    , dataAttrs: [ D.kv "state" "open", D.kv "test-id" "main-panel" ]
+    , ariaAttrs: [ D.kv "describedby" "panel-help" ]
+    }
+    [ ... ]
+  ```
+
+- **Events** — `onClick`, `onDoubleClick`, `onSubmit`, `onFocus`, `onBlur`, `onMouseEnter`, `onMouseLeave`, `onInput`, `onChange`, `onKeyDown`, `onKeyUp`. Input-like handlers carry a `String -> msg` (the event target value or key name); others carry just the message:
+
+  ```purescript
+  D.form { onSubmit: Submitted }
+    [ D.input { type_: "text", onInput: \v -> Updated v, value: model.draft }
+    , D.button { type_: "submit" } [ D.text "Save" ]
+    ]
+  ```
+
+  For anything not in the list above, `PsSpa.Html.onEvent` is the escape hatch:
+
+  ```purescript
+  import PsSpa.Html (onEvent)
+  import PsSpa.Event (preventDefault)
+
+  -- `D.div { ariaAttrs: [...] }` plus an inline escape via array-style attrs:
+  D.div { className: "drop" } [...]
+  -- needs a `dragover` listener? drop down to the array API:
+  H.div
+    [ H.className "drop"
+    , onEvent "dragover" (\e -> DroppedOver)
+    ]
+    [ ... ]
+  ```
+
+### Legacy API
+
+The original array-style API in [src/PsSpa/Html.purs](src/PsSpa/Html.purs) still works and continues to compile against existing pages — `D.div { className: "x" }` and `H.div [H.className "x"]` produce the same `Element` ADT, so both can live in the same file. Use the array API as an escape hatch when the DSL doesn't have a specific helper:
 
 ```purescript
 import PsSpa.Html as H
 
-H.main
-  [ H.className "mx-auto max-w-3xl px-6 py-16" ]
-  [ H.h1 [ H.className "text-4xl font-bold" ] [ H.text "Hello" ]
-  , H.p [] [ H.text "This reads much closer to JSX." ]
-  , H.a [ H.href "/about", H.className "underline" ] [ H.text "About" ]
-  ]
+H.div [ H.attr "data-custom" "anything", H.onClick Submit ]
+  [ H.text "Mixed styles fine." ]
 ```
+
+`Generated.Link` reflects the same split: `Link.link Index { className: "back" }` for the new style, `Link.linkAttrs Index [H.className "back"]` for the legacy one.
+
+### Deep coverage tests
+
+The DSL is covered by deep PureScript tests in [test/Test/Main.purs](test/Test/Main.purs): every element function, every attribute name mapping (`className → class`, `htmlFor → for`, `encType → enctype`, `httpEquiv → http-equiv`, `srcSet → srcset`, ...), boolean true/false behaviour, ARIA-bool always-emit semantics, integer/string overloads, event handler routing, generic data/aria expansion, and deep nesting with custom Msg types. Run them with `npm run test:ps`.

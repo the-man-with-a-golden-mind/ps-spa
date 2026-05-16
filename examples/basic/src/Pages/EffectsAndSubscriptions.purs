@@ -186,11 +186,11 @@ view model =
               ]
           , H.div
               [ H.className "flex flex-wrap gap-4 text-sm font-medium" ]
-              [ Link.link
+              [ Link.linkAttrs
                   Index
                   [ H.className "text-slate-600 underline decoration-slate-300 underline-offset-4" ]
                   [ H.text "Back home" ]
-              , Link.link
+              , Link.linkAttrs
                   Playground
                   [ H.className "text-slate-600 underline decoration-slate-300 underline-offset-4" ]
                   [ H.text "Open playground" ]
