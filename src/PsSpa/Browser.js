@@ -3,8 +3,9 @@
 // `constructor.name` so this code survives bundling/minification.
 //
 //   Html msg
-//     = Text String                                          → { value0 }
+//     = Text String                                          → { value0: str }
 //     | Element String (Array (Attribute msg)) (Array Html)  → { value0, value1, value2 }
+//     | Keyed { tag, attrs, children }                       → { value0: object }
 //
 //   Attribute msg
 //     = Attribute String String                  → { value0: str, value1: str }
@@ -12,15 +13,27 @@
 //     | OnEvent String (Event -> Effect Unit)    → { value0: str, value1: function }
 //
 // Rendering does positional diffing in place rather than rebuilding the whole
-// tree. That preserves input focus across rerenders and makes equal-shape
-// renders much cheaper. Children are matched by index — there are no keys.
+// tree. Plain `Element` children are matched by index. `Keyed` children are
+// matched by their string key across rerenders, so reordering preserves DOM
+// identity (focus, scroll position, listener state) instead of being treated
+// as a series of in-place mutations.
 
 function isObject(value) {
   return value !== null && typeof value === "object";
 }
 
 function isTextHtml(node) {
-  return isObject(node) && "value0" in node && !("value2" in node);
+  return isObject(node)
+    && "value0" in node
+    && !("value1" in node)
+    && typeof node.value0 === "string";
+}
+
+function isKeyedHtml(node) {
+  return isObject(node)
+    && "value0" in node
+    && !("value1" in node)
+    && isObject(node.value0);
 }
 
 function isElementHtml(node) {
@@ -37,6 +50,26 @@ function createNode(html) {
       element.appendChild(createNode(html.value2[i]));
     }
     return element;
+  }
+  if (isKeyedHtml(html)) {
+    var record = html.value0;
+    var keyedEl = document.createElement(record.tag);
+    applyAttributes(keyedEl, [], record.attrs);
+    var keyMap = {};
+    for (var j = 0; j < record.children.length; j += 1) {
+      var pair = record.children[j];
+      var pairKey = pair.value0;
+      // Duplicate keys are a user error; collapse to "last wins" to match the
+      // re-render path's behaviour (where insertBefore detaches on collision).
+      if (keyMap[pairKey] !== undefined) {
+        keyedEl.removeChild(keyMap[pairKey]);
+      }
+      var childNode = createNode(pair.value1);
+      keyedEl.appendChild(childNode);
+      keyMap[pairKey] = childNode;
+    }
+    keyedEl._psSpaKeyMap = keyMap;
+    return keyedEl;
   }
   return document.createTextNode("");
 }
@@ -62,34 +95,107 @@ function reconcileChildren(parent, nextChildren) {
   }
 }
 
+function reconcileKeyedChildren(parent, nextPairs) {
+  // Old key→DOM map from the previous render (may be undefined on the first
+  // keyed render or after an Element→Keyed transition).
+  var oldKeyMap = parent._psSpaKeyMap || {};
+  var nextKeyMap = {};
+  var nextKeySet = Object.create(null);
+
+  for (var i = 0; i < nextPairs.length; i += 1) {
+    nextKeySet[nextPairs[i].value0] = true;
+  }
+
+  // Detach old keyed nodes that aren't in the next render.
+  for (var oldKey in oldKeyMap) {
+    if (!nextKeySet[oldKey]) {
+      var stale = oldKeyMap[oldKey];
+      if (stale.parentNode === parent) {
+        parent.removeChild(stale);
+      }
+    }
+  }
+
+  for (var j = 0; j < nextPairs.length; j += 1) {
+    var pair = nextPairs[j];
+    var key = pair.value0;
+    var nextHtml = pair.value1;
+    var existing = oldKeyMap[key];
+    var resolved;
+
+    if (existing && existing.parentNode === parent) {
+      // Patch in place; patchNode may replace the node if the tag changed,
+      // in which case it returns the freshly created replacement.
+      resolved = patchNode(parent, existing, nextHtml) || existing;
+    } else {
+      resolved = createNode(nextHtml);
+    }
+
+    nextKeyMap[key] = resolved;
+
+    var currentAtJ = parent.childNodes[j];
+    if (currentAtJ !== resolved) {
+      parent.insertBefore(resolved, currentAtJ || null);
+    }
+  }
+
+  // Trim leftover non-keyed children (from an Element→Keyed transition).
+  while (parent.childNodes.length > nextPairs.length) {
+    parent.removeChild(parent.childNodes[parent.childNodes.length - 1]);
+  }
+
+  parent._psSpaKeyMap = nextKeyMap;
+}
+
 function patchNode(parent, domNode, nextHtml) {
   if (isTextHtml(nextHtml)) {
     if (domNode.nodeType === 3) {
       if (domNode.nodeValue !== nextHtml.value0) {
         domNode.nodeValue = nextHtml.value0;
       }
-    } else {
-      parent.replaceChild(document.createTextNode(nextHtml.value0), domNode);
+      return domNode;
     }
-    return;
+    var freshText = document.createTextNode(nextHtml.value0);
+    parent.replaceChild(freshText, domNode);
+    return freshText;
+  }
+
+  if (isKeyedHtml(nextHtml)) {
+    var record = nextHtml.value0;
+    if (domNode.nodeType !== 1 || domNode.nodeName.toLowerCase() !== record.tag.toLowerCase()) {
+      var freshKeyed = createNode(nextHtml);
+      parent.replaceChild(freshKeyed, domNode);
+      return freshKeyed;
+    }
+    var previousAttrsKeyed = domNode._psSpaAttrs || [];
+    applyAttributes(domNode, previousAttrsKeyed, record.attrs);
+    reconcileKeyedChildren(domNode, record.children);
+    return domNode;
   }
 
   if (!isElementHtml(nextHtml)) {
-    parent.replaceChild(document.createTextNode(""), domNode);
-    return;
+    var emptyText = document.createTextNode("");
+    parent.replaceChild(emptyText, domNode);
+    return emptyText;
   }
 
   var nextTag = nextHtml.value0;
   if (domNode.nodeType !== 1 || domNode.nodeName.toLowerCase() !== nextTag.toLowerCase()) {
-    parent.replaceChild(createNode(nextHtml), domNode);
-    return;
+    var freshEl = createNode(nextHtml);
+    parent.replaceChild(freshEl, domNode);
+    return freshEl;
   }
 
   // Same tag — diff attrs and children in place. Preserves input focus,
   // scroll position, video playback state, etc.
   var previousAttrs = domNode._psSpaAttrs || [];
   applyAttributes(domNode, previousAttrs, nextHtml.value1);
+  // Switching from Keyed to plain Element on the same tag: drop the stale map.
+  if (domNode._psSpaKeyMap) {
+    domNode._psSpaKeyMap = null;
+  }
   reconcileChildren(domNode, nextHtml.value2);
+  return domNode;
 }
 
 function applyAttributes(element, previousAttrs, nextAttrs) {

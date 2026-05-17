@@ -8,6 +8,7 @@ import Data.Foldable (any, for_)
 import Data.Maybe (Maybe(..))
 import Data.String.Common (joinWith)
 import Data.String.CodeUnits as String
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console as Console
 import PsSpa.Effect as SpaEffect
@@ -91,6 +92,12 @@ main = do
     , cookbookListOfItems
     , cookbookConditionalClassName
     , cookbookCustomElement
+    ]
+  group "PsSpa.Html.keyed and DSL.keyed"
+    [ keyedHtmlBuildsExpectedShape
+    , keyedDslAppliesAttributeMapping
+    , keyedFunctorMapTraversesChildren
+    , keyedEmptyChildrenProduceEmptyBody
     ]
   Console.log "PureScript framework tests passed"
 
@@ -308,6 +315,17 @@ serializeHtml html =
         <> joinWith "|" (serializeHtml <$> children)
         <> "}"
 
+    Html.Keyed record ->
+      record.tag
+        <> "[*"
+        <> joinWith "," (serializeAttribute <$> record.attrs)
+        <> "]{"
+        <> joinWith "|"
+            ( (\(Tuple key child) -> key <> "=>" <> serializeHtml child)
+                <$> record.children
+            )
+        <> "}"
+
 serializeEffect :: forall command shared route. Show command => Show shared => Show route => SpaEffect.Effect command shared route -> String
 serializeEffect effect =
   case effect of
@@ -352,18 +370,21 @@ htmlTag :: forall msg. Html.Html msg -> String
 htmlTag html =
   case html of
     Html.Element tag _ _ -> tag
+    Html.Keyed record -> record.tag
     Html.Text _ -> "<text>"
 
 htmlChildren :: forall msg. Html.Html msg -> Array (Html.Html msg)
 htmlChildren html =
   case html of
     Html.Element _ _ children -> children
+    Html.Keyed record -> (\(Tuple _ child) -> child) <$> record.children
     Html.Text _ -> []
 
 htmlAttrs :: forall msg. Html.Html msg -> Array (Html.Attribute msg)
 htmlAttrs html =
   case html of
     Html.Element _ attrs _ -> attrs
+    Html.Keyed record -> record.attrs
     Html.Text _ -> []
 
 assertElementShape
@@ -1464,6 +1485,61 @@ cookbookConditionalClassName = do
     (serializeHtml (button { primary: true, disabled: true }))
 
 -- Custom elements via D.element / D.voidElement.
+keyedHtmlBuildsExpectedShape :: Effect Unit
+keyedHtmlBuildsExpectedShape = do
+  let
+    tree :: Html.Html String
+    tree =
+      Html.keyed "ul"
+        [ Html.className "todos" ]
+        [ Tuple "todo-1" (Html.li [] [ Html.text "A" ])
+        , Tuple "todo-2" (Html.li [] [ Html.text "B" ])
+        ]
+
+  assertEqual "Html.keyed serialises with the * marker and key=>child pairs"
+    "ul[*class=todos]{todo-1=>li[]{text(A)}|todo-2=>li[]{text(B)}}"
+    (serializeHtml tree)
+
+keyedDslAppliesAttributeMapping :: Effect Unit
+keyedDslAppliesAttributeMapping = do
+  let
+    tree :: Html.Html String
+    tree =
+      D.keyed "ol"
+        { className: "ranked", id: "leaderboard" }
+        [ Tuple "row-1" (D.li {} [ D.text "first" ])
+        ]
+
+  assertEqual "DSL.keyed runs record attrs through FromAttrs (className → class)"
+    "ol[*class=ranked,id=leaderboard]{row-1=>li[]{text(first)}}"
+    (serializeHtml tree)
+
+keyedFunctorMapTraversesChildren :: Effect Unit
+keyedFunctorMapTraversesChildren = do
+  let
+    tree :: Html.Html Int
+    tree =
+      Html.keyed "ul" []
+        [ Tuple "a" (Html.button [ Html.onClick 1 ] [ Html.text "tap" ])
+        , Tuple "b" (Html.button [ Html.onClick 2 ] [ Html.text "tap" ])
+        ]
+    lifted :: Html.Html String
+    lifted = map show tree
+
+  assertEqual "Functor.map lifts message types inside keyed children"
+    "ul[*]{a=>button[click:\"1\"]{text(tap)}|b=>button[click:\"2\"]{text(tap)}}"
+    (serializeHtml lifted)
+
+keyedEmptyChildrenProduceEmptyBody :: Effect Unit
+keyedEmptyChildrenProduceEmptyBody = do
+  let
+    tree :: Html.Html String
+    tree = D.keyed "ul" { className: "empty" } []
+
+  assertEqual "DSL.keyed with no children serialises with empty body"
+    "ul[*class=empty]{}"
+    (serializeHtml tree)
+
 cookbookCustomElement :: Effect Unit
 cookbookCustomElement = do
   let

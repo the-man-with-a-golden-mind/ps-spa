@@ -44,12 +44,13 @@ module PsSpa.Html.DSL
   -- void (self-closing) elements
   , area, base, br, col, embed, hr, img, input, link, meta, source, track, wbr
   -- escape hatch
-  , element, voidElement
+  , element, voidElement, keyed
   ) where
 
 import Prelude hiding (div, sub)
 
 import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.Tuple (Tuple)
 import Prim.RowList as RL
 import PsSpa.Html (Attribute(..), Html(..))
 import PsSpa.Html as Html
@@ -737,6 +738,21 @@ voidElement ::
   String -> Record r -> Html msg
 voidElement tag attrs =
   Element tag (fromAttrs (Proxy :: Proxy rl) attrs) []
+
+-- | Record-attr flavour of `Html.keyed`. Use this when you want stable per-row
+-- | DOM identity across reorders (drag-and-drop, virtualisation, list sorts).
+-- |
+-- |   D.keyed "ul" { className: "list" }
+-- |     [ Tuple "todo-1" (D.li { className: "row" } [ D.text "A" ])
+-- |     , Tuple "todo-2" (D.li { className: "row" } [ D.text "B" ])
+-- |     ]
+keyed ::
+  forall r rl msg.
+  RL.RowToList r rl =>
+  FromAttrs rl r msg =>
+  String -> Record r -> Array (Tuple String (Html msg)) -> Html msg
+keyed tag attrs children =
+  Html.keyed tag (fromAttrs (Proxy :: Proxy rl) attrs) children
 
 text :: forall msg. String -> Html msg
 text = Text

@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import {
   attr,
   createEnvironment,
+  keyed,
   node,
   onClick,
   onEvent,
@@ -416,6 +417,501 @@ test("inserting a child in the middle still produces the right ordering (positio
   assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "a");
   assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "b");
   assert.equal(ul.childNodes[2].childNodes[0].nodeValue, "c");
+});
+
+test("keyed first render builds children in the given order", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [ attr("class", "list") ], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  assert.equal(ul.tagName, "UL");
+  assert.equal(ul.getAttribute("class"), "list");
+  assert.equal(ul.childNodes.length, 3);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "A");
+  assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "B");
+  assert.equal(ul.childNodes[2].childNodes[0].nodeValue, "C");
+});
+
+test("keyed reorder preserves DOM identity of each child", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  const liB = ul.childNodes[1];
+  const liC = ul.childNodes[2];
+
+  // Reverse the order. Positional diff would mutate text in place; keyed diff
+  // should move the existing nodes.
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "c", node("li", [], [ text("C") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "a", node("li", [], [ text("A") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 3);
+  assert.strictEqual(ul.childNodes[0], liC, "C moved to head, same node");
+  assert.strictEqual(ul.childNodes[1], liB, "B stays, same node");
+  assert.strictEqual(ul.childNodes[2], liA, "A moved to tail, same node");
+});
+
+test("keyed insert at head reuses every old child", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liB = ul.childNodes[0];
+  const liC = ul.childNodes[1];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 3);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "A");
+  assert.strictEqual(ul.childNodes[1], liB, "B reused");
+  assert.strictEqual(ul.childNodes[2], liC, "C reused");
+});
+
+test("keyed insert in the middle preserves identity of surrounding children", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  const liC = ul.childNodes[1];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 3);
+  assert.strictEqual(ul.childNodes[0], liA, "A reused");
+  assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "B");
+  assert.strictEqual(ul.childNodes[2], liC, "C reused (not mutated in place)");
+});
+
+test("keyed remove from the middle keeps survivors intact", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  const liC = ul.childNodes[2];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 2);
+  assert.strictEqual(ul.childNodes[0], liA, "A reused");
+  assert.strictEqual(ul.childNodes[1], liC, "C reused (the removal targeted B, not C)");
+});
+
+test("keyed event listeners follow the node across reorders", () => {
+  const env = createEnvironment();
+  const fires = [];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [ onClick(() => { fires.push("A"); }) ], [ text("A") ]) ],
+      [ "b", node("li", [ onClick(() => { fires.push("B"); }) ], [ text("B") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+
+  // Reorder and re-bind the handler for "a" with the SAME closure semantics.
+  // The runtime should swap listeners on the moved node, not on whatever
+  // happens to share the new index.
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "b", node("li", [ onClick(() => { fires.push("B2"); }) ], [ text("B") ]) ],
+      [ "a", node("li", [ onClick(() => { fires.push("A2"); }) ], [ text("A") ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(ul.childNodes[1], liA, "A is now at index 1, same node");
+  const aListeners = liA.listeners.get("click") ?? [];
+  assert.equal(aListeners.length, 1, "exactly one click listener on A");
+  aListeners[0]({ preventDefault: () => {} });
+  assert.deepEqual(fires, [ "A2" ], "A's new handler fires; not B's");
+});
+
+test("keyed mixed add + remove + reorder", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ],
+      [ "d", node("li", [], [ text("D") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  const liC = ul.childNodes[2];
+  const liD = ul.childNodes[3];
+
+  // Remove B, swap C↔D, insert E at head.
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "e", node("li", [], [ text("E") ]) ],
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "d", node("li", [], [ text("D") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 4);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "E");
+  assert.strictEqual(ul.childNodes[1], liA, "A survived");
+  assert.strictEqual(ul.childNodes[2], liD, "D moved up");
+  assert.strictEqual(ul.childNodes[3], liC, "C moved down");
+});
+
+test("keyed → keyed with all keys replaced reuses no children", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const oldLi = ul.childNodes[0];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "z", node("li", [], [ text("Z") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 1);
+  assert.notStrictEqual(ul.childNodes[0], oldLi, "different key = fresh node");
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "Z");
+});
+
+test("Element → Keyed transition cleans up stale children", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ node("ul", [], [
+      node("li", [], [ text("X") ]),
+      node("li", [], [ text("Y") ])
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], ul, "<ul> reused (same tag)");
+  assert.equal(ul.childNodes.length, 2);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "A");
+  assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "B");
+});
+
+test("Keyed → Element transition drops the key map and falls back to positional diff", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+
+  render(env, {
+    title: "",
+    body: [ node("ul", [], [
+      node("li", [], [ text("X") ])
+    ]) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], ul, "<ul> reused (same tag)");
+  assert.equal(ul.childNodes.length, 1);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "X");
+  assert.equal(ul._psSpaKeyMap, null, "stale key map cleared");
+});
+
+test("keyed identical rerender does no DOM work", () => {
+  const env = createEnvironment();
+  const doc = {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  };
+
+  render(env, doc);
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  const liB = ul.childNodes[1];
+
+  render(env, doc);
+
+  assert.strictEqual(rootChildren(env)[0], ul);
+  assert.strictEqual(ul.childNodes[0], liA);
+  assert.strictEqual(ul.childNodes[1], liB);
+});
+
+test("nested keyed inside keyed preserves identity at both levels across reorders", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("section", [], [
+      [ "group-1", keyed("ul", [], [
+          [ "a", node("li", [], [ text("A1") ]) ],
+          [ "b", node("li", [], [ text("B1") ]) ]
+        ]) ],
+        [ "group-2", keyed("ul", [], [
+          [ "a", node("li", [], [ text("A2") ]) ],
+          [ "b", node("li", [], [ text("B2") ]) ]
+        ]) ]
+    ]) ]
+  });
+  const section = rootChildren(env)[0];
+  const ulOne = section.childNodes[0];
+  const ulTwo = section.childNodes[1];
+  const ulOneLiA = ulOne.childNodes[0];
+  const ulTwoLiB = ulTwo.childNodes[1];
+
+  // Reverse outer order, AND reverse inner order of group-1.
+  render(env, {
+    title: "",
+    body: [ keyed("section", [], [
+      [ "group-2", keyed("ul", [], [
+          [ "a", node("li", [], [ text("A2") ]) ],
+          [ "b", node("li", [], [ text("B2") ]) ]
+        ]) ],
+      [ "group-1", keyed("ul", [], [
+          [ "b", node("li", [], [ text("B1") ]) ],
+          [ "a", node("li", [], [ text("A1") ]) ]
+        ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(section.childNodes[0], ulTwo, "outer: group-2 moved up, same <ul>");
+  assert.strictEqual(section.childNodes[1], ulOne, "outer: group-1 moved down, same <ul>");
+  assert.strictEqual(section.childNodes[1].childNodes[0], ulOne.childNodes[0], "inner: same node at new position");
+  assert.strictEqual(section.childNodes[1].childNodes[1], ulOneLiA, "inner: A1 moved to end, same node");
+  assert.strictEqual(section.childNodes[0].childNodes[1], ulTwoLiB, "inner of group-2: untouched, B2 still there");
+});
+
+test("keyed empty → non-empty via rerender uses patchNode (not createNode) path", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [ attr("class", "list") ], []) ]
+  });
+  const ul = rootChildren(env)[0];
+  assert.equal(ul.childNodes.length, 0);
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [ attr("class", "list") ], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], ul, "<ul> reused");
+  assert.equal(ul.childNodes.length, 2);
+  assert.equal(ul.childNodes[0].childNodes[0].nodeValue, "A");
+  assert.equal(ul.childNodes[1].childNodes[0].nodeValue, "B");
+});
+
+test("keyed non-empty → empty removes every child", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "c", node("li", [], [ text("C") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], []) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], ul, "<ul> reused");
+  assert.equal(ul.childNodes.length, 0, "all children removed");
+});
+
+test("keyed container attributes diff in place across rerenders", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [ attr("class", "compact"), attr("data-state", "loading") ], [
+      [ "a", node("li", [], [ text("A") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const liA = ul.childNodes[0];
+  assert.equal(ul.getAttribute("class"), "compact");
+  assert.equal(ul.getAttribute("data-state"), "loading");
+
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [ attr("class", "wide") ], [
+      [ "a", node("li", [], [ text("A") ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(rootChildren(env)[0], ul, "<ul> reused");
+  assert.strictEqual(ul.childNodes[0], liA, "child reused");
+  assert.equal(ul.getAttribute("class"), "wide", "class updated in place");
+  assert.equal(ul.getAttribute("data-state"), null, "data-state removed");
+});
+
+test("keyed child whose tag changes is replaced; key still tracks the new node", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("li", [], [ text("A") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  const oldLiA = ul.childNodes[0];
+  const liB = ul.childNodes[1];
+
+  // Same key "a", but tag flips from <li> to <div>.
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "a", node("div", [ attr("class", "card") ], [ text("A!") ]) ],
+      [ "b", node("li", [], [ text("B") ]) ]
+    ]) ]
+  });
+
+  assert.equal(ul.childNodes.length, 2);
+  assert.notStrictEqual(ul.childNodes[0], oldLiA, "old <li> replaced");
+  assert.equal(ul.childNodes[0].tagName, "DIV");
+  assert.equal(ul.childNodes[0].getAttribute("class"), "card");
+  assert.strictEqual(ul.childNodes[1], liB, "neighbour with stable key+tag stays put");
+
+  // The next reorder should still treat key "a" as the new <div>, not the dead <li>.
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "b", node("li", [], [ text("B") ]) ],
+      [ "a", node("div", [ attr("class", "card") ], [ text("A!") ]) ]
+    ]) ]
+  });
+  assert.strictEqual(ul.childNodes[0], liB, "B moved up, same node");
+  assert.equal(ul.childNodes[1].tagName, "DIV", "A's new <div> moved down");
+});
+
+test("keyed Text child is fine alongside element children", () => {
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("div", [], [
+      [ "label", text("Total:") ],
+      [ "value", node("strong", [], [ text("42") ]) ]
+    ]) ]
+  });
+  const wrapper = rootChildren(env)[0];
+  const labelNode = wrapper.childNodes[0];
+  const valueNode = wrapper.childNodes[1];
+  assert.equal(labelNode.nodeType, 3, "first child is a text node");
+  assert.equal(labelNode.nodeValue, "Total:");
+  assert.equal(valueNode.tagName, "STRONG");
+
+  // Update the value, leave the text label alone. Both should be reused.
+  render(env, {
+    title: "",
+    body: [ keyed("div", [], [
+      [ "label", text("Total:") ],
+      [ "value", node("strong", [], [ text("43") ]) ]
+    ]) ]
+  });
+
+  assert.strictEqual(wrapper.childNodes[0], labelNode, "text node reused");
+  assert.strictEqual(wrapper.childNodes[1], valueNode, "<strong> reused");
+  assert.equal(valueNode.childNodes[0].nodeValue, "43");
+});
+
+test("keyed duplicate keys collapse onto a single DOM node (documents the behaviour)", () => {
+  // The renderer treats keys as identifiers; duplicates within one container
+  // are a user error. This test pins down the current behaviour so we know
+  // when it changes (e.g. if we ever start throwing on collisions).
+  const env = createEnvironment();
+  render(env, {
+    title: "",
+    body: [ keyed("ul", [], [
+      [ "x", node("li", [], [ text("first") ]) ],
+      [ "x", node("li", [], [ text("second") ]) ]
+    ]) ]
+  });
+  const ul = rootChildren(env)[0];
+  // The second occurrence "wins" placement at index 0 because insertBefore
+  // detaches the node from its prior position. Only one DOM node survives.
+  assert.equal(ul.childNodes.length, 1, "duplicate keys collapse to one node");
 });
 
 test("nested edits preserve identity at every level that doesn't change shape", () => {

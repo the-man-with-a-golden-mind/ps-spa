@@ -20,6 +20,15 @@ function Element(value0, value1, value2) {
   this.value2 = value2;
 }
 
+function Keyed(value0) {
+  this.value0 = value0;
+}
+
+function Tuple(value0, value1) {
+  this.value0 = value0;
+  this.value1 = value1;
+}
+
 function Attribute(value0, value1) {
   this.value0 = value0;
   this.value1 = value1;
@@ -52,6 +61,15 @@ function onEvent(name, handler) {
 
 function node(tag, attrs, children) {
   return new Element(tag, attrs, children);
+}
+
+// Mirror PsSpa.Html.keyed: pairs are [key, html] entries; we lift them into the
+// Tuple constructor shape PureScript uses at runtime.
+function keyed(tag, attrs, pairs) {
+  var children = pairs.map(function (pair) {
+    return new Tuple(pair[0], pair[1]);
+  });
+  return new Keyed({ tag: tag, attrs: attrs, children: children });
 }
 
 class FakeTextNode {
@@ -115,6 +133,24 @@ class FakeElement {
       oldChild.parentNode = null;
     }
     return oldChild;
+  }
+
+  insertBefore(newChild, referenceChild) {
+    if (newChild.parentNode) {
+      newChild.parentNode.removeChild(newChild);
+    }
+    if (referenceChild == null) {
+      this.childNodes.push(newChild);
+    } else {
+      const index = this.childNodes.indexOf(referenceChild);
+      if (index === -1) {
+        this.childNodes.push(newChild);
+      } else {
+        this.childNodes.splice(index, 0, newChild);
+      }
+    }
+    newChild.parentNode = this;
+    return newChild;
   }
 
   addEventListener(type, listener) {
@@ -244,7 +280,21 @@ class FakeWindow {
   }
 }
 
-export { Text, Element, Attribute, OnClick, OnEvent, text, attr, onClick, onEvent, node };
+export {
+  Text,
+  Element,
+  Keyed,
+  Tuple,
+  Attribute,
+  OnClick,
+  OnEvent,
+  text,
+  attr,
+  onClick,
+  onEvent,
+  node,
+  keyed
+};
 
 function loadBrowserModule(document, window) {
   const module = { exports: {} };

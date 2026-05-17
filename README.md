@@ -108,6 +108,7 @@ Because PureScript does not allow Elm-style trailing underscore module names, th
 
 - default ejected shared/auth modules comparable to a mature `elm-spa` app
 - richer PureScript-side request/form decoders for larger apps
+- server-side rendering (SSR) to a string
 
 ## Tailwind
 
@@ -355,6 +356,19 @@ D.ul { className: "stack" }
   (map (\todo -> D.li { className: "row" } [ D.text todo.label ]) model.todos)
 ```
 
+**Keyed lists for reorder-safe rendering** — when rows can move (drag-and-drop sort, virtualisation, reverse-chronological feeds), reach for `D.keyed`. Children are paired with stable string keys; the renderer matches by key across rerenders, so reordering moves the existing DOM nodes instead of mutating their contents in place. That preserves focus, scroll position, and listener identity per row.
+
+```purescript
+import Data.Tuple (Tuple(..))
+import PsSpa.Html.DSL as D
+
+view model =
+  D.keyed "ul" { className: "todos" }
+    (map (\todo -> Tuple todo.id (D.li { className: "row" } [ D.text todo.label ])) model.todos)
+```
+
+`PsSpa.Html.keyed` is the equivalent array-style helper. Keys must be unique within a single keyed container; duplicates collapse onto a single DOM node.
+
 **Conditional className with multiple flags** — `Data.String.Common.joinWith`:
 
 ```purescript
@@ -416,8 +430,7 @@ See [examples/basic/src/Pages/EffectsAndSubscriptions.purs](examples/basic/src/P
 
 So you know what you're trading off:
 
-- **No virtual DOM diffing.** Until v0.5.x the renderer rebuilt the DOM tree on every state change; v0.5.2+ does positional diffing in place (preserves focus, faster on equal-shape rerenders) but still doesn't do keyed reordering. For lists where rows move around (drag-and-drop sort, virtualisation), you'll see flicker / lost focus.
-- **No keyed lists.** Children are matched by index. Reordering = full reset of element identity. If you need stable identity, use record fields like `id` to detect the change yourself.
+- **No virtual DOM diffing.** Until v0.5.x the renderer rebuilt the DOM tree on every state change; v0.5.2+ does positional diffing in place (preserves focus, faster on equal-shape rerenders). For lists where rows move around (drag-and-drop sort, virtualisation, reverse-chronological feeds), reach for `D.keyed` / `Html.keyed` so the renderer matches children by stable key instead of by index.
 - **No SSR.** The renderer only knows how to call `document.createElement`. Server-side rendering to a string is not supported.
 - **No ref callbacks.** You cannot get a handle to the underlying DOM element from inside the DSL. Reach for `Command`s and FFI for things like "focus this input after mount".
 - **No `dangerouslySetInnerHTML`.** All text goes through `createTextNode`, so it's always escaped. Rendering markdown output requires using FFI to set `innerHTML` on a wrapper element via a custom Command.

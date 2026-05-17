@@ -29,6 +29,7 @@ module PsSpa.Html
   , href_
   , id
   , img
+  , keyed
   , main
   , main_
   , nav
@@ -64,6 +65,7 @@ module PsSpa.Html
 
 import Prelude hiding (div)
 import Data.String.Common (joinWith)
+import Data.Tuple (Tuple(..))
 import PsSpa.Event (EventValue, keyName, targetValue)
 
 data Attribute msg
@@ -98,6 +100,11 @@ data AriaRole
 data Html msg
   = Text String
   | Element String (Array (Attribute msg)) (Array (Html msg))
+  | Keyed
+      { tag :: String
+      , attrs :: Array (Attribute msg)
+      , children :: Array (Tuple String (Html msg))
+      }
 
 instance functorHtml :: Functor Html where
   map lift html =
@@ -111,6 +118,16 @@ instance functorHtml :: Functor Html where
           ((\attribute -> lift <$> attribute) <$> attrs)
           ((\child -> map lift child) <$> children)
 
+      Keyed record ->
+        Keyed
+          { tag: record.tag
+          , attrs: ((\attribute -> lift <$> attribute) <$> record.attrs)
+          , children:
+              ( (\(Tuple key child) -> Tuple key (map lift child))
+                  <$> record.children
+              )
+          }
+
 text :: forall msg. String -> Html msg
 text = Text
 
@@ -119,6 +136,18 @@ attr = Attribute
 
 node :: forall msg. String -> Array (Attribute msg) -> Array (Html msg) -> Html msg
 node = Element
+
+-- | A keyed container element. Children are paired with stable string keys;
+-- | the renderer matches them by key across rerenders, so reordering preserves
+-- | DOM identity (focus, scroll position, listener state) instead of rebuilding
+-- | siblings positionally.
+keyed
+  :: forall msg
+   . String
+  -> Array (Attribute msg)
+  -> Array (Tuple String (Html msg))
+  -> Html msg
+keyed tag attrs children = Keyed { tag, attrs, children }
 
 div :: forall msg. Array (Attribute msg) -> Array (Html msg) -> Html msg
 div = node "div"
