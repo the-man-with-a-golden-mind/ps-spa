@@ -19,7 +19,7 @@ package:
     dependencies:
       - console
   publish:
-    version: 0.5.3
+    version: 0.6.0
     license: MIT
     location:
       githubOwner: the-man-with-a-golden-mind
