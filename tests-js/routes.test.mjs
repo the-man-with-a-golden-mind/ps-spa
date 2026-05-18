@@ -217,6 +217,38 @@ test("collectAppScaffoldFiles uses a file dependency when scaffolding from the s
   assert.match(pkg.dependencies["ps-spa"], /^file:/);
 });
 
+test("collectAppScaffoldFiles includes Shared.purs and Auth.purs", () => {
+  const appRoot = path.join("/tmp", "shared-auth-scaffold");
+  const files = collectAppScaffoldFiles(appRoot);
+
+  const shared = files.find((file) => file.relativePath === path.join("src", "Shared.purs"));
+  const auth = files.find((file) => file.relativePath === path.join("src", "Auth.purs"));
+
+  assert.ok(shared, "Shared.purs is part of the scaffold");
+  assert.ok(auth, "Auth.purs is part of the scaffold");
+
+  assert.match(shared.content, /module Shared/);
+  assert.match(shared.content, /type Shared =/);
+  assert.match(shared.content, /currentUser :: Maybe User/);
+  assert.match(shared.content, /init :: Shared/);
+
+  assert.match(auth.content, /module Auth/);
+  assert.match(auth.content, /type User =/);
+  assert.match(auth.content, /requireUser/);
+  assert.match(auth.content, /optionalUser/);
+});
+
+test("scaffolded Main.purs wires Shared.init through App.startWith", () => {
+  const appRoot = path.join("/tmp", "shared-main-scaffold");
+  const files = collectAppScaffoldFiles(appRoot);
+  const main = files.find((file) => file.relativePath === path.join("src", "Main.purs"));
+
+  assert.ok(main, "Main.purs is part of the scaffold");
+  assert.match(main.content, /import Shared as Shared/);
+  assert.match(main.content, /App\.startWith/);
+  assert.match(main.content, /initialShared: Shared\.init/);
+});
+
 test("ensureTailwindScaffold patches package.json, vite.config.mjs and creates the css file", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-tailwind-"));
   fs.writeFileSync(

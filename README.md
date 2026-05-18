@@ -106,7 +106,6 @@ Because PureScript does not allow Elm-style trailing underscore module names, th
 
 ## What is still missing
 
-- default ejected shared/auth modules comparable to a mature `elm-spa` app
 - richer PureScript-side request/form decoders for larger apps
 - server-side rendering (SSR) to a string
 
@@ -140,6 +139,26 @@ bun run dev
 The generated app can be bundled into `public/app.js` and mounted into `#app` using the minimal runtime in [src/PsSpa/Runtime.purs](src/PsSpa/Runtime.purs).
 
 Internal `<a href="/somewhere">` links are intercepted by the SPA runtime, so route changes no longer require a full page reload.
+
+## Shared State and Auth
+
+`ps-spa new` scaffolds two app-level modules alongside your pages:
+
+- `src/Shared.purs` defines the `Shared` record handed to every page and `protect` guard. The default ships a single `currentUser :: Maybe User` field; extend it with theme / feature flags / session token / etc.
+- `src/Auth.purs` defines the `User` type plus `Auth.requireUser` (a reusable protect guard) and `Auth.optionalUser` (a getter for views). Both helpers are row-polymorphic in `shared`, so adding fields to `Shared` doesn't break them.
+
+`Main.purs` wires `Shared.init` through `App.startWith`, so `shared` is live from the first render. Gate a page behind auth by replacing its default `protect`:
+
+```purescript
+import Auth as Auth
+import Generated.Route (Route(..))
+
+protect = Auth.requireUser Login
+```
+
+To flip `shared.currentUser` on login, an advanced page emits a fresh value via `Effect.fromShared`; the runtime swaps shared, re-renders, and the next `protect` call sees the new state. See [Getting Started → Shared State and Auth](docs/getting-started.md#shared-state-and-auth) for the full walkthrough.
+
+These two modules are app-owned: `gen` and `verify` deliberately leave them alone, matching how `Shared.elm` and `Auth.elm` work in `elm-spa`.
 
 ## Reliability
 

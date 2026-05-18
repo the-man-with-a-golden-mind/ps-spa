@@ -80,11 +80,96 @@ function mainModuleSource() {
 
 import Prelude
 
+import Data.Const (Const(..))
 import Effect (Effect)
 import Generated.App as App
+import Shared as Shared
 
 main :: Effect Unit
-main = App.start
+main =
+  App.startWith
+    { initialShared: Shared.init
+    , onCommand: absurd
+    , onSubscription: \\_ (Const impossible) -> absurd impossible
+    , rootId: "app"
+    , sharedSubscriptions: \\_ _ -> []
+    }
+`;
+}
+
+function sharedModuleSource() {
+  return `module Shared
+  ( Shared
+  , init
+  ) where
+
+import Data.Maybe (Maybe(..))
+import Auth (User)
+
+-- | App-wide state visible to every page and protect guard. The runtime hands
+-- | this record to pages as the polymorphic \`shared\` parameter; advanced
+-- | pages can emit a new value via \`Effect.fromShared\` to trigger a re-render
+-- | with fresh shared state.
+-- |
+-- | Extend this record with whatever your app needs (theme, feature flags,
+-- | session token, …). Pages that need a field just constrain their protect
+-- | / view signatures to the relevant row.
+type Shared =
+  { currentUser :: Maybe User
+  }
+
+-- | Initial Shared value handed to \`App.startWith { initialShared: Shared.init,
+-- | … }\`. Replace \`currentUser: Nothing\` with whatever you read out of
+-- | localStorage / cookies / SSR payload at boot.
+init :: Shared
+init =
+  { currentUser: Nothing
+  }
+`;
+}
+
+function authModuleSource() {
+  return `module Auth
+  ( User
+  , requireUser
+  , optionalUser
+  ) where
+
+import Prelude
+import Data.Maybe (Maybe(..))
+
+-- | The minimal logged-in user shape. Extend with whatever your app actually
+-- | needs (email, roles, avatar, …) and mirror the extension in Shared.
+type User =
+  { id :: String
+  , name :: String
+  }
+
+-- | Reusable protect guard: returns \`Just loginRoute\` when shared state has
+-- | no current user. Wire into a page's \`protect\`:
+-- |
+-- |     import Auth as Auth
+-- |     import Generated.Route (Route(..))
+-- |
+-- |     protect = Auth.requireUser Login
+-- |
+-- | The signature is row-polymorphic in \`shared\`, so adding fields to Shared
+-- | doesn't break this helper.
+requireUser
+  :: forall request route shared
+   . route
+  -> { currentUser :: Maybe User | shared }
+  -> request
+  -> Maybe route
+requireUser loginRoute shared _request =
+  case shared.currentUser of
+    Just _user -> Nothing
+    Nothing -> Just loginRoute
+
+-- | Read the optional logged-in user out of shared state. Handy for views that
+-- | show different UI for guests vs. signed-in users.
+optionalUser :: forall shared. { currentUser :: Maybe User | shared } -> Maybe User
+optionalUser shared = shared.currentUser
 `;
 }
 
@@ -147,6 +232,14 @@ export function collectAppScaffoldFiles(root, packageRoot = repoRoot) {
     {
       content: mainModuleSource(),
       relativePath: path.join("src", "Main.purs")
+    },
+    {
+      content: sharedModuleSource(),
+      relativePath: path.join("src", "Shared.purs")
+    },
+    {
+      content: authModuleSource(),
+      relativePath: path.join("src", "Auth.purs")
     },
     {
       content: packageJsonSource(root, packageRoot),
