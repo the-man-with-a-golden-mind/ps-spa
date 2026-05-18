@@ -21,6 +21,8 @@ import PsSpa.Page as Page
 import PsSpa.Request as Request
 import PsSpa.View as View
 import Test.Assert (assertEqual, assertTrue, failTest, group)
+import Test.Scaffold.Auth as ScaffoldAuth
+import Test.Scaffold.Shared as ScaffoldShared
 
 main :: Effect Unit
 main = do
@@ -98,6 +100,13 @@ main = do
     , keyedDslAppliesAttributeMapping
     , keyedFunctorMapTraversesChildren
     , keyedEmptyChildrenProduceEmptyBody
+    ]
+  group "Scaffold Shared/Auth contract"
+    [ scaffoldSharedInitHasNoCurrentUser
+    , scaffoldAuthRequireUserRedirectsWhenAnonymous
+    , scaffoldAuthRequireUserPassesWhenSignedIn
+    , scaffoldAuthRequireUserIsRowPolymorphic
+    , scaffoldAuthOptionalUserExposesCurrentUser
     ]
   Console.log "PureScript framework tests passed"
 
@@ -1539,6 +1548,71 @@ keyedEmptyChildrenProduceEmptyBody = do
   assertEqual "DSL.keyed with no children serialises with empty body"
     "ul[*class=empty]{}"
     (serializeHtml tree)
+
+----------------------------------------------------------------------
+-- Scaffold-emitted Shared/Auth contract. Test.Scaffold.* mirrors are
+-- kept in lockstep with the scaffold template bodies (see
+-- scripts/cli/scaffold.mjs); a JS test enforces structural alignment.
+----------------------------------------------------------------------
+
+sampleScaffoldUser :: ScaffoldAuth.User
+sampleScaffoldUser = { id: "u-1", name: "Ada" }
+
+scaffoldSharedInitHasNoCurrentUser :: Effect Unit
+scaffoldSharedInitHasNoCurrentUser =
+  assertEqual "Shared.init starts with no signed-in user"
+    Nothing
+    ScaffoldShared.init.currentUser
+
+scaffoldAuthRequireUserRedirectsWhenAnonymous :: Effect Unit
+scaffoldAuthRequireUserRedirectsWhenAnonymous = do
+  let
+    shared = { currentUser: Nothing :: Maybe ScaffoldAuth.User }
+    result = ScaffoldAuth.requireUser "/login" shared unit
+
+  assertEqual "requireUser redirects to loginRoute when currentUser is Nothing"
+    (Just "/login")
+    result
+
+scaffoldAuthRequireUserPassesWhenSignedIn :: Effect Unit
+scaffoldAuthRequireUserPassesWhenSignedIn = do
+  let
+    shared = { currentUser: Just sampleScaffoldUser }
+    result = ScaffoldAuth.requireUser "/login" shared unit
+
+  assertEqual "requireUser returns Nothing when currentUser is Just _"
+    Nothing
+    result
+
+scaffoldAuthRequireUserIsRowPolymorphic :: Effect Unit
+scaffoldAuthRequireUserIsRowPolymorphic = do
+  -- Extended Shared shape with extra fields beyond `currentUser`. The
+  -- row-polymorphic signature should accept it without modification.
+  let
+    extendedShared =
+      { currentUser: Just sampleScaffoldUser
+      , theme: "dark"
+      , featureFlags: [ "beta", "v2" ]
+      }
+    result = ScaffoldAuth.requireUser "/login" extendedShared unit
+
+  assertEqual "requireUser stays happy when Shared has extra fields"
+    Nothing
+    result
+
+scaffoldAuthOptionalUserExposesCurrentUser :: Effect Unit
+scaffoldAuthOptionalUserExposesCurrentUser = do
+  let
+    signedIn = { currentUser: Just sampleScaffoldUser }
+    anonymous = { currentUser: Nothing :: Maybe ScaffoldAuth.User }
+
+  assertEqual "optionalUser returns Just user when signed in"
+    (Just sampleScaffoldUser)
+    (ScaffoldAuth.optionalUser signedIn)
+
+  assertEqual "optionalUser returns Nothing when anonymous"
+    Nothing
+    (ScaffoldAuth.optionalUser anonymous)
 
 cookbookCustomElement :: Effect Unit
 cookbookCustomElement = do

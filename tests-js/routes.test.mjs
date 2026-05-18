@@ -20,6 +20,7 @@ import {
   generatePagesModule,
   generateRouteModule,
   pageFileToRouteInfo,
+  generateFiles,
   pascalToKebab,
   readCurrentVersion,
   routeToPageFile,
@@ -247,6 +248,171 @@ test("scaffolded Main.purs wires Shared.init through App.startWith", () => {
   assert.match(main.content, /import Shared as Shared/);
   assert.match(main.content, /App\.startWith/);
   assert.match(main.content, /initialShared: Shared\.init/);
+});
+
+// Pin the *behavioural contract* that the PS test mirrors (test/Test/Scaffold/*.purs)
+// also satisfy. The PS mirrors execute the real functions in the PS test
+// suite; this JS check is the cheaper drift detector that catches anyone
+// editing the scaffold body without updating the mirror (or vice versa).
+// Doc-comments are allowed to drift; function bodies and signatures are not.
+const AUTH_CONTRACT_PATTERNS = [
+  /type User =\s*\{\s*id :: String\s*,\s*name :: String\s*\}/,
+  /requireUser\s*\n?\s*:: forall request route shared\s*\n?\s*\.\s*route\s*\n?\s*-> \{ currentUser :: Maybe User \| shared \}\s*\n?\s*-> request\s*\n?\s*-> Maybe route/,
+  /requireUser loginRoute shared _request =\s*\n\s*case shared\.currentUser of\s*\n\s*Just _user -> Nothing\s*\n\s*Nothing -> Just loginRoute/,
+  /optionalUser :: forall shared\. \{ currentUser :: Maybe User \| shared \} -> Maybe User\s*\n\s*optionalUser shared = shared\.currentUser/
+];
+
+const SHARED_CONTRACT_PATTERNS = [
+  /type Shared =\s*\{\s*currentUser :: Maybe User\s*\}/,
+  /init :: Shared\s*\n\s*init =\s*\n\s*\{ currentUser: Nothing\s*\}/
+];
+
+function assertMatchesAll(label, source, patterns) {
+  for (const pattern of patterns) {
+    assert.match(source, pattern, `${label}: missing pattern ${pattern}`);
+  }
+}
+
+test("scaffold Auth.purs satisfies the contract pinned by the PS test mirror", () => {
+  const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
+  const scaffoldFiles = collectAppScaffoldFiles(path.join("/tmp", "mirror-check"));
+  const scaffoldAuth = scaffoldFiles.find(
+    (file) => file.relativePath === path.join("src", "Auth.purs")
+  ).content;
+  const mirror = fs.readFileSync(
+    path.join(repoRoot, "test", "Test", "Scaffold", "Auth.purs"),
+    "utf8"
+  );
+
+  assertMatchesAll("scaffold Auth.purs", scaffoldAuth, AUTH_CONTRACT_PATTERNS);
+  assertMatchesAll("Test.Scaffold.Auth mirror", mirror, AUTH_CONTRACT_PATTERNS);
+});
+
+test("scaffold Shared.purs satisfies the contract pinned by the PS test mirror", () => {
+  const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
+  const scaffoldFiles = collectAppScaffoldFiles(path.join("/tmp", "mirror-check-shared"));
+  const scaffoldShared = scaffoldFiles.find(
+    (file) => file.relativePath === path.join("src", "Shared.purs")
+  ).content;
+  const mirror = fs.readFileSync(
+    path.join(repoRoot, "test", "Test", "Scaffold", "Shared.purs"),
+    "utf8"
+  );
+
+  assertMatchesAll("scaffold Shared.purs", scaffoldShared, SHARED_CONTRACT_PATTERNS);
+  assertMatchesAll("Test.Scaffold.Shared mirror", mirror, SHARED_CONTRACT_PATTERNS);
+});
+
+// Compile the scaffold's stand-alone modules (Shared.purs, Auth.purs) with
+// the framework's cached PS dependencies. They don't depend on Generated.*,
+// so this isolates parse / typecheck errors in the scaffold templates from
+// codegen wiring. Skips when purs is missing or .spago/p hasn't been
+// populated yet.
+test("scaffolded Shared.purs and Auth.purs compile cleanly", () => {
+  const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
+  const sharedAuthDir = path.join(repoRoot, ".spago", "p");
+  if (!fs.existsSync(sharedAuthDir)) {
+    return; // skip in environments without resolved spago deps
+  }
+
+  let pursVersion;
+  try {
+    pursVersion = execFileSync("purs", ["--version"], {
+      stdio: ["ignore", "pipe", "ignore"]
+    }).toString().trim();
+  } catch (_error) {
+    return; // skip when purs isn't on PATH
+  }
+  assert.ok(pursVersion.length > 0);
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-scaffold-compile-"));
+  const files = collectAppScaffoldFiles(tmp);
+  for (const relName of ["Auth.purs", "Shared.purs"]) {
+    const file = files.find((f) => f.relativePath === path.join("src", relName));
+    const target = path.join(tmp, "src", relName);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, file.content);
+  }
+
+  // Collect deps: latest version of each package in .spago/p.
+  const latestByPackage = new Map();
+  for (const dir of fs.readdirSync(sharedAuthDir)) {
+    const match = dir.match(/^(.+)-(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) continue;
+    const [, name, maj, min, patch] = match;
+    const semver = [Number(maj), Number(min), Number(patch)];
+    const current = latestByPackage.get(name);
+    if (!current || semver > current.semver) {
+      latestByPackage.set(name, { semver, dir });
+    }
+  }
+
+  const depFiles = [];
+  for (const { dir } of latestByPackage.values()) {
+    const srcDir = path.join(sharedAuthDir, dir, "src");
+    if (!fs.existsSync(srcDir)) continue;
+    const walk = (current) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".purs")) depFiles.push(full);
+      }
+    };
+    walk(srcDir);
+  }
+
+  const scaffoldFiles = [
+    path.join(tmp, "src", "Auth.purs"),
+    path.join(tmp, "src", "Shared.purs")
+  ];
+
+  const result = execFileSync(
+    "purs",
+    ["compile", "--output", path.join(tmp, "output"), ...scaffoldFiles, ...depFiles],
+    { stdio: ["ignore", "pipe", "pipe"] }
+  ).toString();
+  assert.ok(
+    !/^Error/m.test(result),
+    `purs compile reported errors:\n${result}`
+  );
+
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+test("generateFiles leaves Shared.purs and Auth.purs untouched", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ps-spa-preserve-"));
+
+  // Minimum app skeleton that generateFiles is willing to scan.
+  fs.mkdirSync(path.join(tmp, "src", "Pages"), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp, "src", "Pages", "Index.purs"),
+    "module Pages.Index where\n"
+  );
+  fs.writeFileSync(
+    path.join(tmp, "src", "Pages", "NotFound.purs"),
+    "module Pages.NotFound where\n"
+  );
+
+  // Write marker Shared.purs and Auth.purs that we'd notice being rewritten.
+  const markerShared = "module Shared where\n-- DO_NOT_TOUCH_SHARED\n";
+  const markerAuth = "module Auth where\n-- DO_NOT_TOUCH_AUTH\n";
+  fs.writeFileSync(path.join(tmp, "src", "Shared.purs"), markerShared);
+  fs.writeFileSync(path.join(tmp, "src", "Auth.purs"), markerAuth);
+
+  generateFiles(tmp);
+
+  assert.equal(
+    fs.readFileSync(path.join(tmp, "src", "Shared.purs"), "utf8"),
+    markerShared,
+    "Shared.purs must be left alone by gen"
+  );
+  assert.equal(
+    fs.readFileSync(path.join(tmp, "src", "Auth.purs"), "utf8"),
+    markerAuth,
+    "Auth.purs must be left alone by gen"
+  );
+
+  fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 test("ensureTailwindScaffold patches package.json, vite.config.mjs and creates the css file", () => {
